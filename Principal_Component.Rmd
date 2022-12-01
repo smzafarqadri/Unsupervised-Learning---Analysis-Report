@@ -1,0 +1,1571 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+liverDisease <- read.csv("Liver_Disease.csv")
+```
+
+```{r}
+names(liverDisease)[names(liverDisease) == "Dataset"] <- "Liver_Disease"
+```
+
+```{r}
+liverDisease$Liver_Disease[liverDisease$Liver_Disease == "1"] <- 0
+
+liverDisease$Liver_Disease[liverDisease$Liver_Disease == "2"] <- 1
+```
+
+```{r}
+
+liverDisease$Gender[liverDisease$Gender == "Female"] <- 0
+
+liverDisease$Gender[liverDisease$Gender == "Male"] <- 1
+
+```
+
+```{r}
+liverDisease$Gender <- factor(liverDisease$Gender)
+
+liverDisease$Liver_Disease <- as.numeric(liverDisease$Liver_Disease)
+liverDisease$Liver_Disease <- factor(liverDisease$Liver_Disease)
+```
+
+```{r}
+liver <- na.omit(liverDisease)
+```
+
+# Principal Component Analysis
+
+Principal Component Analysis, or PCA, is a dimensionality-reduction method that is often used to reduce the dimensionality of large data sets, by transforming a large set of variables into a smaller one that still contains most of the information in the large set.
+Reducing the number of variables of a data set naturally comes at the expense of accuracy, but the trick in dimensionality reduction is to trade a little accuracy for simplicity. Because smaller data sets are easier to explore and visualize and make analyzing data much easier and faster for machine learning algorithms without extraneous variables to process.
+Before proceeding with the PCA, it is necessary to evaluate whether there is correlation between the numerical variables. To accomplish this, we'll need a subset of the dataset that contains all continuous values.
+
+```{r}
+liver_sub <- liver[ -c(2,11) ]
+```
+
+```{r}
+library(psych)
+pairs.panels(liver_sub, main= "Original Space-Bivariate Scatter Plots",
+             ellipses = FALSE, gap = 0)
+```
+
+This is a preliminary analysis of the data in the original space, which aim is to understand if it would be useful to run a Principal Component Analysis and a Cluster one on this dataset. In fact, in the upper triangle of the matrix there are the coefficients of correlation between variables, which are used to understand if PCA is useful or not, while in the lower triangle there are the scatterplots of data and on the main diagonal there is the non-parametric density of the data, both used to understand if Component analysis could be useful or not.
+Specifically, if we look at the plot, we can see that there is a high correlation between some variables, for example between `Age` and `Total_Bilirubin`, which is `0.87` have a strongest positive correlation, `Alamine_Aminotransferase` and `Aspartate_Aminotransferase`, which is `0.79` having a strongest positive correlation, `Total_Protiens` and `Albumin` having a strongest positive correlation of `0.78` and also `Albumin` and `Albumin_and_Globulin_Ratio` having a correlation of `0.69`. This means that a PCA in this dataset could really be useful, in fact we could create a linear combination between the variables and express them through a single variable.
+As regard to the diagonal panels, they are used to understand if the single variable is useful for clustering: if the density line is bi-model, the relative variable could be useful for clustering, otherwise not. In this case, each variable separately considered is not useful to see clusters, but, if we look at the pairwise of variables, it is useful. In fact, from the scatterplots of the data in the lower triangle we can see that there are clusters, because the data are grouped along the diagonal instead of remaining scattered in space.
+
+
+## Prepare the Data
+
+In order to evaluate the difference between the variables, the mean and the variance are computed for each variable.
+
+```{r}
+apply(liver_sub, 2, mean)
+```
+```{r}
+apply(liver_sub, 2, var)
+```
+
+There is a great difference in the variables. It is preferable to normalize a variable in order to have a zero mean and uniform variance when working with homogeneous variables.
+
+```{r}
+scaled_liver <- apply(liver_sub, 2, scale)
+head(scaled_liver)
+```
+
+## Computing PCs
+
+In order to find the Principal Components, the Eigen decomposition is applied to the covariance matrix of the standardized data.
+
+```{r}
+liver_cov <- cov(scaled_liver)
+liver_eigen<-eigen(liver_cov)
+liver_eigen$value
+```
+
+The eigen vectors of the PCs are displayed as an example:
+
+```{r}
+phi <- liver_eigen$vectors[,1:3]
+phi <- -phi
+row.names(phi) <- c("Age", "Total_Bilirubin", "Direct_Bilirubin", "Alkaline_Phosphotase", "Alamine_Aminotransferase", "Aspartate_Aminotransferase", "Total_Protiens", "Albumin", "Albumin_and_Globulin_Ratio")
+colnames(phi) <- c("PC1", "PC2", "PC3")
+phi
+```
+
+By examining the loading we note that first loading vector phi 1 puts most of its weight on Direct_Bilirubin (0.419) and much less weight on Albumin (-0.440). The second loading vector phi 2 puts most of its weight on Age (0.285) and much less weight on Albumin (-0.430). The third loading vector phi 3 puts most of its weight on Total_Bilirubin (0.452) and much less weight on Alamine_Aminotransferase (-0.504).
+
+## Principal Component Scores
+
+```{r}
+PC1 <- scaled_liver %*% phi[,1]
+PC2 <- scaled_liver %*% phi[,2]
+PC3 <- scaled_liver %*% phi[,3]
+PC <- data.frame(ID = row.names(liver), PC1, PC2, PC3)
+head(PC)
+```
+```{r}
+library(ggplot2)
+library(modelr)
+ggplot(PC, aes(PC1, PC2)) +
+modelr::geom_ref_line(h = 0) +
+modelr::geom_ref_line(v = 0) +
+geom_text(aes(label = ID), size = 3) +
+xlab("1st Principal Component") +
+ylab("2nd Principal Component") +
+ggtitle("Scores: PC1 and PC2")
+```
+
+## Biplot
+
+It is possible to visualize the scores and the original variable (represented by arrows) in the space spanned by the first two principal components. we set center= True to shift the variable into zero center as follows:
+
+```{r}
+set.seed(123)
+liver_pc <- prcomp(liver_sub, center = TRUE, scale. = FALSE)
+biplot(liver_pc, cex.axis = 0.5, scale=0)
+abline(h=0)
+abline(v=0)
+```
+
+The angle between the arrows gives information on the correlation between the two variables.
+
+```{r}
+cor(liver_sub)
+```
+
+To select the number of principal components, three heuristic methods are proposed as follows:
+
+### Cumulative Proportion of Variance Explained (CPVE)
+
+According to this approach, the first q principal components that explain at least 80% of the total variance are retained.
+
+```{r}
+(PVE <- liver_eigen$values/sum(liver_eigen$values))
+```
+* The First PC explains 30.59% of the variability.
+
+* The Second PC explains 22.52% of the variability.
+
+* The Third PC explains 15.17% of the variability.
+
+* The Fourth PC explains 10.64% of the variability.
+
+* The Fifth PC explains 9.38% of the variability.
+
+* The Sixth PC explains 7.40% of the variability.
+
+* The Seven PC explains 2.26% of the variability.
+
+* The Eight PC explains 1.39% of the variability.
+
+* The Ninth PC explains 0.61% of the variability.
+
+```{r}
+cumsum(PVE)
+```
+
+According to this method, the first five principal components are retained because together they explain the 88% of the total variance.
+
+### Scree Plot
+
+The scree plot shows the value of q that matches the value of m when the curve falls flat.
+
+```{r}
+plot(PVE, xlab="Principal Component", ylab="Proportion of Variance", main="Scree Plot", ylim=c(0,1), type='b')
+```
+```{r}
+plot(cumsum(PVE), xlab="Principal Component", main="Cumulative Scree Plot", ylab="Cumulative Proportion of Variance", ylim=c(0,1),type='b')
+```
+
+In the “Proportion of variance Explained” plot, the elbow point in not so clear and it may be at q=2 or q=4 or q=6. However, according to this method, it seems reasonable to retain the first six principal components.
+
+### Kaiser’s Rule
+
+For standardized data, the principal components with a variance greater than one are chosen according to Kaiser's rule.
+
+```{r}
+liver_eigen$values
+```
+
+The rule of the Kaiser indicates that first three principal component should be maintained.
+
+
+## PCA Result
+
+I have achieved various results based on various methods. The 'CPVE' rule recommends that the first five components are retained, while the Scree plot provides result to retain the first six components but the kaiser's rule implies that the first three components are maintained. I chose the results of Scree plot since more PCs will be obtained.
+
+# Cluster Analysis
+
+The purpose of the clustering is to locate homogeneous subgroups in the liver dataset and to accomplish this analysis, various methods can be useful. The analysis composed of many different steps. In the first step, a certain sort of distance is computed among pairs and the distance matrix is established. This is because in this kind of analysis, the concept of dissimilarity is important, since the unit most "similar" will be put into the same cluster, while there must be a large dissimilarity between the other clusters.
+
+## Hopkins statistic
+
+```{r}
+liver_scale <- scale(liver_sub)
+```
+
+```{r}
+library(clustertend)
+hopkins(liver_scale, n = nrow(liver_scale)-1)
+```
+
+The statistical value of Hopkins is nearly 0. The outcome is clustered data, assuming that the uniform distribution is the configuration without cluster.
+
+## Euclidean Distance
+
+Let us compute the Euclidean distance as follows:
+
+```{r}
+dist.eucl <- dist(liver_scale, method = "euclidean")
+eucl <- round(as.matrix(dist.eucl)[1:9, 1:9], 2)
+row.names(eucl) <- c("Age", "Total_Bilirubin", "Direct_Bilirubin", "Alkaline_Phosphotase", "Alamine_Aminotransferase", "Aspartate_Aminotransferase", "Total_Protiens", "Albumin", "Albumin_and_Globulin_Ratio")
+colnames(eucl) <- c("Age", "Total_Bilirubin", "Direct_Bilirubin", "Alkaline_Phosphotase", "Alamine_Aminotransferase", "Aspartate_Aminotransferase", "Total_Protiens", "Albumin", "Albumin_and_Globulin_Ratio")
+eucl
+```
+
+In this symmetric matrix, each value represents the distance between units. The values on the diagonal represent the distance between units and themselves (which is zero).
+
+## Manhattan Distance
+
+Let us compute the Manhattan distance as follows:
+
+```{r}
+dist.man <- dist(liver_scale, method = "manhattan")
+man <- round(as.matrix(dist.man)[1:9,1:9],2)
+row.names(man) <- c("Age", "Total_Bilirubin", "Direct_Bilirubin", "Alkaline_Phosphotase", "Alamine_Aminotransferase", "Aspartate_Aminotransferase", "Total_Protiens", "Albumin", "Albumin_and_Globulin_Ratio")
+colnames(man) <- c("Age", "Total_Bilirubin", "Direct_Bilirubin", "Alkaline_Phosphotase", "Alamine_Aminotransferase", "Aspartate_Aminotransferase", "Total_Protiens", "Albumin", "Albumin_and_Globulin_Ratio")
+man
+```
+
+In this symmetric matrix, each value represents the distance between units. The values on the diagonal represent the distance between units and themselves (which is zero).
+
+## Visualization
+
+### Euclidean
+
+```{r}
+library(factoextra)
+fviz_dist(dist.eucl)
+```
+
+### Manhattan
+
+```{r}
+fviz_dist(dist.man)
+```
+
+These are the distance matrices, based on the Euclidean distance. The level of its colors is proportional to the value of the dissimilarity between observations: red stands for high similarity, blue indicates low similarity. Hence, in the diagonal the maximum of similarity is reached- namely the minimum of dissimilarity, in fact there are the pairs made up of each unit with itself, pairs with dissimilarity equal to zero.
+
+## Maximum Number of Clusters
+
+Using both Euclidean and Manhattan distance, according to different clustering methods, the maximum number of clusters will be computed as follows:
+
+## Hierarchical Method
+
+### Average Linkage Method & Euclidean Distance
+
+Average linkage method and Euclidean distance means the linkage methods work by calculating the distances or similarities between all objects. Then the closest pair of clusters are combined into a single cluster, reducing the number of clusters remaining. The process is then repeated until there is only a single cluster left.
+
+```{r}
+library(NbClust)
+nb <- NbClust(liver_scale, distance = "euclidean", min.nc = 2, max.nc = 10,
+method = "average")
+```
+```{r}
+library(factoextra)
+fviz_nbclust(nb) +
+labs(subtitle = "H.C. - Average linkage Method & Euclidean Distance",
+     cex.sub= 0.5)
+```
+```{r}
+hc <- hclust(dist.eucl, method = "average")
+grp <- cutree(hc, k=2)
+table(grp)
+head(grp)
+```
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("blue", "green"),
+          color_labels_by_k = TRUE, rect = TRUE) +
+labs(title = "Dendrogram", subtitle = "H.C. - Average linkage Method & Euclidean Distance, K=2", cex.subtitle= 0.5)
+```
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering using average linkage method and euclidean distance is 2.
+
+```{r}
+pairs(liver_scale, gap=0, pch=grp, cex.main= 0.7,
+      main="Original Space\nH.C.- Average linkage Method & Euclidean Distance K=2",
+      col=c("blue", "green")[grp])
+```
+``` {r}
+options(ggrepel.max.overlaps = Inf)
+
+fviz_cluster(list(data = liver_scale, cluster = grp), palette = c("blue", "green"),
+             ellipse.type = "convex", main="PCs Space", repel = TRUE,
+             show.clust.aver = FALSE, ggtheme = theme_minimal()) +
+  labs(subtitle = "H.C. - Average linkage Method & Euclidean Distance K=2",
+             cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette Width
+
+``` {r}
+hclust<- eclust(liver_sub, k=2, "hclust", hc_method  = "average", nboot = 50,
+                hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "H.C.- Average linkage Method & Euclidean Distance K=2",
+  cex.sub= 0.5)
+```
+```{r}
+silinfo$clus.avg.widths
+```
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of average silhouette width indicates that in average the units are well enough clustered. As in particular, in cluster one the units are on average the same silhouette value with respect to the silhouette width but second cluster which has the lower silhouette value with respect to the silhouette width.
+
+##### Dunn Index
+
+```{r}
+library(fpc)
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+Units are not clustered sufficiently according to the Dunn index.
+
+#### External Validation Measures
+
+##### Confusion Index
+
+According to the Confusion matrix, the number of clusters is more than nominal values.
+The clusters found are 2 while the nominal variable can take 2 possible values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+A large number of patients who doesn't have the liver disease (n = 412) has been classified in cluster 1 while cluster 2 have only 2 values. The same happened for whom have the liver disease (n = 165) classified in cluster 1 while cluster 2 has 0 values.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Average Linkage Method & Manhattan Distance
+
+```{r}
+nb <- NbClust(liver_scale, distance = "manhattan", min.nc = 2, max.nc = 10,
+method = "average")
+```
+
+```{r}
+fviz_nbclust(nb) +
+  labs(subtitle = "H.C. - Average linkage Method & Manhattab Distance",
+       cex.sub= 0.5)
+```
+
+```{r}
+dist.man <- dist(liver_scale, method = "manhattan")
+hc <- hclust(dist.man, method = "average")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("orange", "red"),
+          color_labels_by_k = TRUE, rect = TRUE) +
+labs(title = "Dendrogram",
+     subtitle = "H.C. - Average linkage Method & Manhattan Distance K=4",
+     cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.man, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering using average linkage method and manhattan distance is 2.
+
+```{r}
+pairs(liver_scale, gap=0, pch=grp, cex.main= 0.7,
+      main="Original Space\nH.C.- Average linkage Method & Manhattan Distance K=2",
+      col=c("orange", "red")[grp])
+```
+
+```{r}
+options(ggrepel.max.overlaps = Inf)
+
+fviz_cluster(list(data = liver_scale, cluster = grp),
+palette = c("orange", "red"), ellipse.type = "convex",
+main="PCs Space", repel = TRUE, show.clust.aver = FALSE,
+ggtheme = theme_minimal()) + 
+labs(subtitle = "H.C. - Average linkage Method & Manhattan Distance K=2",
+cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k=2, "hclust", hc_method = "average", nboot = 50,
+                hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+labs(subtitle = "H.C.- Average linkage Method & Manhattan Distance K=2",
+cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of average silhouette width indicates that in average the units are well enough clustered. In particular, in cluster 1 (blue cluster) the units having the same silhouette value with respect to the silhouette width, in cluster 2 (the yellow one) the units are on average having the lower silhouette value with respect to silhouette width.
+
+##### Dunn Index
+
+```{r}
+library(fpc)
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+According to the Confusion matrix, the number of clusters is equal to nominal values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+For the liver disease, data has been classified mostly in cluster 1, 577 units in cluster 1, and 2 in cluster 2. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 0 values. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Complete Linkage Method & Euclidean Distance
+
+```{r}
+nb <- NbClust(liver_scale, distance = "euclidean", min.nc = 2, max.nc = 10,
+              method = "complete")
+```
+
+```{r}
+fviz_nbclust(nb) +
+  labs(subtitle = "H.C. - Complete linkage Method & Euclidean Distance",
+       cex.sub= 0.5)
+```
+
+```{r}
+hc <- hclust(dist.eucl, method = "complete")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("orange", "green"),
+          color_labels_by_k = TRUE, rect = TRUE) + labs(title = "Dendrogram",
+          subtitle = "H.C. - Complete linkage Method & Euclidean distance K=2",
+          cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering using complete linkage method and euclidean distance is 2.
+
+```{r}
+pairs(liver_scale, gap=0, pch=grp, cex.main= 0.7,
+main="Original Space\nH.C.- Complete linkage Method & Euclidian Distance K=2",
+col=c("orange", "green")[grp])
+```
+```{r}
+fviz_cluster(list(data = liver_scale, cluster = grp),
+             palette = c("orange", "green"), ellipse.type = "convex",
+             main="PCs Space", repel = TRUE, show.clust.aver = FALSE,
+             ggtheme = theme_minimal()) +
+  labs(subtitle = "H.C. - Complete linkage Method & Euclidean Distance K=2",
+       cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal validation measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k = 2, "hclust", hc_method = "complete",
+                nboot = 50, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+labs(subtitle = "H.C.- Complete linkage Method & Euclidean Distance K = 2",
+cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of complete silhouette width indicates that on average the units are well enough clustered. In cluster 1 (blue cluster) the units are on average the same silhouette value with respect to the silhouette width, in cluster 2 (the yellow one) the units are on average having the lower silhouette value with respect to silhouette width. According to the index, unit that belong to cluster 1 are not well clustered, it should belong to the neighbor cluster 2.
+
+##### Dunn Index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+According to the Confusion matrix, the number of clusters is equal to the nominal values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+For the liver disease, data has been classified mostly in cluster 1, 578 units in cluster 1, and 1 in cluster 2. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 0 values. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Complete linkage Method & Manhattan Distance
+
+```{r}
+nb <- NbClust(liver_scale, distance = "manhattan", min.nc = 2, max.nc = 10,
+              method = "complete")
+```
+
+```{r}
+fviz_nbclust(nb) +
+  labs(subtitle = "H.C. - Complete linkage Method & Manhattan Distance",
+       cex.sub= 0.5)
+```
+
+```{r}
+dist.man <- dist(liver_scale, method = "manhattan")
+hc <- hclust(dist.man, method = "complete")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("purple", "pink"),
+          r_labels_by_k = TRUE, rect = TRUE) + labs(title = "Dendrogram",
+          subtitle = "H.C. - Complete linkage Method & Manhattan Distance K=2",
+          cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.man, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering using complete linkage method and manhattan distance is 2.
+
+```{r}
+pairs(liver_scale, gap=0, pch=grp, cex.main= 0.7,
+      main="Original Space\nH.C.- Complete linkage Method & Manhattan Distance K=2",
+      col=c("purple", "pink")[grp])
+```
+
+```{r}
+fviz_cluster(list(data = liver_scale, cluster = grp),  palette = c("purple", "pink"),
+             ellipse.type = "convex", main="PCs Space", repel = TRUE,
+             show.clust.aver = FALSE, ggtheme = theme_minimal()) +
+  labs(subtitle = "H.C. - Complete linkage Method and Manhattan Distance K=2",
+       cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k=2, "hclust", hc_method = "complete",
+                nboot = 50, hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+labs(subtitle = "H.C.- Complete linkage Method & Manhattan Distance K=2",
+cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of complete silhouette width indicates that on average the units are well enough clustered. In cluster 1 (blue cluster) the units are on average the same silhouette value with respect to the silhouette width, in cluster 2 (the yellow one) the units are on average having the lower silhouette value with respect to silhouette width. According to the index, unit that belong to cluster 1 are not well clustered, it should belong to the neighbor cluster 2.
+
+##### Dunn Index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+According to the Confusion matrix, the number of clusters is equal to nominal values. The clusters found are 2 and the nominal variable can take 2 possible values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+For the liver disease, data has been classified mostly in cluster 1, 572 units in cluster 1, and 7 in cluster 2. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 0 values. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats <- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster. solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Centroid Linkage Method & Euclidean Distance
+
+```{r}
+library(NbClust)
+nb <- NbClust(liver_scale, distance = "euclidean", min.nc = 2, max.nc = 10,
+              method = "centroid")
+```
+
+```{r}
+library(factoextra)
+fviz_nbclust(nb) +
+  labs(subtitle = "H.C. - Centroid linkage Method & Euclidian Distance",
+       cex.sub= 0.5)
+```
+
+```{r}
+dist.eucl <- dist(liver_scale, method = "euclidian")
+hc <- hclust(dist.eucl, method = "centroid")
+grp <- cutree(hc, k=2)
+table(grp)
+```
+
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("orange", "purple"),
+          color_labels_by_k = TRUE, rect = TRUE) + labs(title = "Dendrogram",
+          subtitle = "H.C. - Centroid linkage Method & Euclidean Distance K = 2",
+          cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+
+According to the result of “NbClust”, the best number of clusters, applying hierarchical clustering using the Centroid linkage method and euclidean distance is 2.
+
+```{r}
+pairs(liver_scale, gap=0, pch=grp, cex.main= 0.7,
+      main="Original Space\nH.C.- Centroid linkage Method & Euclidean Distance K=2",
+      col=c("orange", "purple")[grp])
+```
+
+```{r}
+fviz_cluster(list(data = liver_scale, cluster = grp),
+             palette = c("orange", "purple"), ellipse.type = "convex",
+             main="PCs Space", repel = TRUE, show.clust.aver = FALSE,
+             ggtheme = theme_minimal()) +
+  labs(subtitle = "H.C. - Centroid linkage Method & Euclidean Distance K=2",
+       cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k = 2, "hclust", hc_method = "centroid",
+                nboot = 50, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "H.C.- Centroid linkage Method & Euclidean Distance K = 2",
+       cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu<- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of complete silhouette width indicates that on average the units are well enough clustered. In cluster 1 (blue cluster) the units are on average the same silhouette value with respect to the silhouette width, in cluster 2 (the yellow one) the units are on average having the lower silhouette value with respect to silhouette width.
+
+##### Dunn Index
+
+```{r}
+library(fpc)
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+According to the Confusion matrix, the number of clusters is equal to the nominal values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+For the liver disease, data has been classified mostly in cluster 1, 577 units in cluster 1, and 2 in cluster 2. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 0 values. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster. Solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Centroid linkage Method & Manhattan Distance
+
+```{r}
+nb <- NbClust(liver_scale, distance = "manhattan", min.nc = 2, max.nc = 10,
+              method = "centroid")
+```
+
+```{r}
+fviz_nbclust(nb) +
+  labs(subtitle = "H.C. - Centroid linkage Method & Manhattan Distance",
+       cex.sub= 0.5)
+```
+
+```{r}
+dist.man <- dist(liver_scale, method = "manhattan")
+hc <- hclust(dist.man, method = "centroid")
+grp <- cutree(hc, k = 2)
+table(grp)
+head(grp)
+```
+
+```{r}
+fviz_dend(hc, k = 2, cex = 0.5, k_colors = c("red", "blue"),
+          color_labels_by_k = TRUE, rect = TRUE) + labs(title = "Dendrogram",
+          subtitle = "H.C. - Centroid linkage Method & Manhattan Distance K=2",
+          cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+
+According to the result of `NbClust`, the best number of clusters, applying hierarchical clustering using centroid linkage method and manhattan distance is 2.
+
+```{r}
+pairs(liver_scale, gap=0, pch = grp, cex.main = 0.7,
+      main = "Original Space\nH.C.- Centroid linkage Method & Manhattan Distance K=2",
+      col=c("red", "blue")[grp])
+```
+
+```{r}
+fviz_cluster(list(data = liver_scale, cluster = grp),
+             palette = c("red", "blue"), ellipse.type = "convex",
+             main = "PCs Space", repel = TRUE, show.clust.aver = FALSE,
+             ggtheme = theme_minimal()) +
+  labs(subtitle = "H.C. - Centroid linkage Method & Manhattan Distance K=2",
+       cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k = 2, "hclust", hc_method = "centroid",
+                nboot = 50, hc_metric = "manhattan")
+```
+
+```{r}
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "H.C.- Centroid linkage Method & Manhattan Distance K=2",
+cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of complete silhouette width indicates that on average the units are well enough clustered. In cluster 1 (blue cluster) the units are on average the same silhouette value with respect to the silhouette width, in cluster 2 (the yellow one) the units are on average having the lower silhouette value with respect to silhouette width.
+
+##### Dunn index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+According to the Confusion matrix, the number of clusters is equal to nominal values. The clusters found are 2 and the nominal variable can take 2 possible values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+For the liver disease, data has been classified mostly in cluster 1, 577 units in cluster 1, and 2 in cluster 2. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 0 values. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats <- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster. solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Ward's Method - Minimum Deviance
+
+```{r}
+nb <- NbClust(liver_scale, distance = "euclidean", min.nc = 2, max.nc = 10,
+              method = "ward.D2")
+```
+
+```{r}
+fviz_nbclust(nb) +
+  labs(subtitle = "H.C. - Wards's Method", cex.sub= 0.5)
+```
+
+```{r}
+hc <- hclust(dist.eucl, method = "ward.D2")
+grp <- cutree(hc, k=3)
+table(grp)
+head(grp)
+```
+
+```{r}
+fviz_dend(hc, k = 3, cex = 0.5, k_colors = c("red", "blue","yellow"),
+          color_labels_by_k = TRUE, rect = TRUE) +
+  labs(title = "Dendrogram", subtitle = "H.C. - Ward's Method, K=3",
+       cex.subtitle= 0.5)
+```
+
+```{r}
+cor(dist.eucl, cophenetic(hc))
+```
+
+According to the function `NbClust`, the best number of clusters, applying hierarchical clustering using Ward’s method and euclidean distance is 3.
+
+```{r}
+pairs(liver_scale, gap=0, pch=grp, cex.main= 0.7,
+      main="Original Space\nH.C.- Ward's Method K=3",
+      col=c("red", "blue", "yellow")[grp])
+```
+
+```{r}
+fviz_cluster(list(data = liver_scale, cluster = grp),
+             palette = c("red", "blue", "yellow"), ellipse.type = "convex",
+             main="PCs Space", repel = TRUE, show.clust.aver = FALSE,
+             ggtheme = theme_minimal()) +
+  labs(subtitle = "H.C. - Ward's Method & Euclidian Distance K=3", cex.sub= 0.5)
+```
+
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette Width
+
+```{r}
+hclust<- eclust(liver_sub, k=3, "hclust", hc_method = "ward.D2", nboot = 50)
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "H.C.- Ward's Method & Euclidian Distance K=3", cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of complete silhouette width indicates that on average the units are well enough clustered. As in particular, in cluster 1 the units are on above average the silhouette value with respect to the silhouette width, in cluster 2 the units are on average having the lower silhouette value with respect to the silhouette width, and in cluster 3 on average having the lower silhouette value with respect to the silhouette width. According to above index, units that belong to cluster 1 are not well clustered, they should belong to the neighbor cluster 2.
+
+##### Dunn Index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+According to the Confusion matrix, the number of clusters is equal to nominal values. The clusters found are 2 and the nominal variable can take 2 possible values.
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+For the liver disease, data has been classified mostly in cluster 1, 560 units in cluster 1, 17 in cluster 2, and 2 in cluster 3. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 1 value and cluster 3 has 0 value. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical value and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+## Partitional Method
+
+### K-Means
+
+```{r}
+library(ggplot2)
+nb <- NbClust(liver_scale, min.nc=2, max.nc=15, method="kmeans")
+```
+
+```{r}
+fviz_nbclust(nb) +
+  labs(subtitle = " Partitional Clustering - K-Means")
+```
+
+```{r}
+fviz_nbclust(liver_scale, kmeans, method = "wss") +
+  geom_vline(xintercept = 2, linetype = 2) +
+  labs(title= "Elbow Method: Optimal Number Of Clusters K=2",
+       subtitle = "Partitional Clustering - K-Means")
+```
+
+```{r}
+set.seed(123)
+(km.res<- kmeans(liver_scale, 2, nstart = 25))
+```
+
+```{r}
+aggregate(liver_sub, by=list(cluster=km.res$cluster), mean)
+```
+
+As the results shows first cluster contains lower units of variables.
+
+```{r}
+dd <- cbind(liver_sub, cluster = km.res$cluster)
+head(dd)
+```
+
+```{r}
+cl <- km.res$cluster
+table(cl)
+```
+
+```{r}
+pairs(liver_scale, gap=0, pch=cl, main="Original Space\nP.C. - K-Means K=2",
+      cex.main= 1, col=c("red", "blue")[cl])
+```
+
+```{r}
+fviz_cluster(km.res, data = liver_scale, palette = c("red", "blue"),
+             ellipse.type = "euclid", star.plot = TRUE, repel = TRUE,
+             main= "PCs Space", ggtheme = theme_minimal()) +
+  labs(subtitle = "P.C. - K-Means K=2")
+```
+
+According to the function `NbClust`, the best number of clusters, applying partitional clustering using K-means method is 2. K-means clustering suggests 2 clusters of sizes 517 in cluster 1, and 62 in cluster 2. The quality between different clusters is 19.9 % of the total variability is explained by the separation between clusters. In the PCs space, there is no separation between clusters. To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k=2, "kmeans", nstart=25, graph = FALSE)
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(hclust, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "P.C. - K-Means K=3")
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of average silhouette width indicates that in average the units are well enough clustered. In particular, in cluster 1 (blue cluster) the units are on average the same silhouette value with respect to the silhouette width, in cluster 2 (the yellow one) the units are below average the silhouette value with respect to silhouette width. According to the above index, 4 units that belong to cluster 2 are not well clustered, they should belong to the cluster 1.
+
+##### Dunn index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion matrix
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+According to the Confusion matrix, there is not a perfect agreement between the nominal variable Liver_Disease and the cluster solution. For the liver disease, data has been classified mostly in cluster 1, 568 units in cluster 1, and 11 in cluster 2. For the patients having liver disease classified mostly in cluster 1 while cluster 2 has 0 value. Safe to say data are not well balanced in both cluster.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease) 
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Partitioning Around Medoids (PAM) & Euclidean Distance Method
+
+```{r}
+fviz_nbclust(liver_scale, cluster::pam, method = "wss") +
+  geom_vline(xintercept = 3, linetype = 2) +
+  labs(title = "Elbow Method: Optimal Number of Clusters K=3",
+       subtitle="P.C. - K-Medoids & Euclidean Distance", cex.sub= 0.5)
+```
+
+```{r}
+fviz_nbclust(liver_scale, cluster::pam, method = "silhouette") +
+  labs(title = "Silhouette Method:  Optimal Number of Clusters K=3",
+       subtitle="P.C. - K-Medoids & Euclidean Distance", cex.sub= 0.5)
+```
+
+```{r}
+fviz_nbclust(liver_scale, cluster::pam, method = "gap_stat", nboot = 500) +
+  labs(title = "Gap Statistic Method: Optimal Number of Clusters K",
+       subtitle="P.C. - K-Medoids & Euclidean Distance", cex.sub= 0.5)
+```
+
+```{r}
+library(cluster)
+set.seed(123)
+(pam.res <- pam(liver_scale, 3, metric = "euclidean"))
+```
+
+```{r}
+pam.res$clusinfo
+```
+
+```{r}
+cc <- pam.res$cluster
+pairs(liver_scale, gap=0, pch=cc,
+      main="Original Space\nP.C. - K-Medoids & Euclidean Distance K=3",
+      cex.main= 0.7, col=c("red", "blue", "orange")[cc])
+```
+
+```{r}
+fviz_cluster(pam.res, palette = c("red", "blue", "green"), ellipse.type = "t",
+             repel = TRUE, main= "PCs Space", ggtheme = theme_classic()) +
+  labs(subtitle = "P.C. - K-Medoids & Euclidean Distance K=3", cex.sub= 0.5)
+```
+
+```{r}
+table(cc)
+```
+
+Applying partitioning clustering method and using PAM algorithm and euclidean distance, clusters are composed in this way: cluster 1 with 290 units, cluster 2 with 57 units and cluster 3 with 232 units.
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust <- eclust(liver_sub, k = 3, "pam", graph = FALSE, hc_metric = "euclidean")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(pam.res, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "P.C. - K-Medoids & Euclidean Distance K=3",
+       cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of average silhouette width indicates that in average the units are not well enough clustered. In particular, in cluster 1 the units are in average having the same silhouette value with respect to the silhouette width, in cluster 2 the units have in average a lowest value with respect to the silhouette width while in cluster 3 the units are in average having the higher value with respect to the silhouette width. According to the index, 40 units are not well clustered, units that belong to cluster 2 and 3, should belong to cluster 1.
+
+##### Dunn Index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External validation Measures
+
+##### Confusion Matrix
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+According to the Confusion matrix, there is not a perfect agreement between the nominal variable Liver_Disease and the cluster solution. A large number of patients not having liver disease 461 has been classified in cluster 1, 81 in cluster 2, and 37 in cluster 3. For the patients who have liver disease mostly classified in cluster 1 with 154 units and 11 units in cluster 2 but none in cluster 3.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+### Partitioning Around Medoids (PAM) & Manhattan Distance
+
+```{r}
+set.seed(123)
+fviz_nbclust(liver_scale, cluster::pam, method = "wss",
+             diss = dist(liver_scale, method = "manhattan")) +
+  geom_vline(xintercept = 3, linetype = 2) +
+  labs(title = "Elbow Method: Optimal Number of Clusters K=3",
+       subtitle="P.C. - K-Medoids & Manhattan Distance", cex.sub= 0.5)
+```
+
+```{r}
+fviz_nbclust(liver_scale, cluster::pam, method = "silhouette",
+             diss = dist(liver_scale, method = "manhattan")) +
+  labs(title = "Elbow Method - Optimal Number of Clusters K=3",
+       subtitle="P.C. - K-Medoids & Manhattan Distance", cex.sub= 0.5)
+```
+
+```{r}
+set.seed(123)
+fviz_nbclust(liver_scale, cluster::pam, method = "gap_stat", nboot = 500,
+             diss=dist(liver_scale, method = "manhattan")) +
+  labs(title = "Gap Statistic Method: Optimal Number of Clusters K",
+       subtitle="P.C. - K-Medoids & Euclidean Distance", cex.sub= 0.5)
+```
+
+In order to find the optimal number of clusters, three indices were used. The elbow method seem suggest k=3, Silhouette method suggests 3 clusters, Gap statistics 10 clusters. It was decided to proceed by identifying 3 clusters.
+
+```{r}
+library(cluster)
+set.seed(123)
+(pam.res <- pam(liver_scale, 3, metric="manhattan"))
+```
+
+```{r}
+pam.res$clusinfo
+```
+
+```{r}
+cm <- pam.res$cluster
+pairs(liver_scale, gap=0,
+      main="Original Space\nP.C. - K-Medoids & Manhattan Distance K=3",
+      cex.main= 0.7, pch = cm, col = c("red", "purple", "green")[cm])
+```
+
+```{r}
+fviz_cluster(pam.res, palette = c("red", "purple", "green"), ellipse.type = "t",
+             repel = TRUE, ggtheme = theme_classic()) +
+  labs(subtitle = "P.C. - K-Medoids & Manhattan Distance, K=3", cex.sub= 0.5)
+```
+
+```{r}
+table(cm)
+```
+
+Applying partitioning clustering using PAM algorithm and euclidean distance, three clusters are composed in this way: cluster 1 with 290 units, cluster 2 with 57 units and cluster 3 with 232 units.
+To evaluate the goodness of clustering algorithm results, internal and external validation measures will be analyzed as follows:
+
+#### Internal Validation Measures
+
+##### Silhouette width
+
+```{r}
+hclust<- eclust(liver_sub, k=3, "pam", graph = FALSE, hc_metric = "manhattan")
+silinfo <- hclust$silinfo
+silinfo$avg.width
+```
+
+```{r}
+fviz_silhouette(pam.res, palette = "jco", ggtheme = theme_classic()) +
+  labs(subtitle = "P.C. - K-Medoids & Manhattan Distance K=3", cex.sub= 0.5)
+```
+
+```{r}
+silinfo$clus.avg.widths
+```
+
+```{r}
+sil <- hclust$silinfo$widths[, 1:3]
+neg_sil_index_aver.eu <- which(sil[, "sil_width"] < 0)
+sil[neg_sil_index_aver.eu, , drop = FALSE]
+```
+
+The value of average silhouette width indicates that in average the units are not well enough clustered. In particular, in cluster 1 the units are in average having the same silhouette value with respect to the silhouette width, in cluster 2 the units have in average a lowest value with respect to the silhouette width while in cluster 3 the units are in average having the higher value with respect to the silhouette width. According to the index, 40 units are not well clustered, units that belong to cluster 2 and 3, should belong to cluster 1.
+ 
+##### Dunn index
+
+```{r}
+stats <- cluster.stats(dist(liver_scale), hclust$cluster)
+stats$dunn
+```
+
+According to the Dunn index, the units are not clustered well enough.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+```{r}
+table(liver$Liver_Disease, hclust$cluster)
+```
+
+According to the Confusion matrix, there is not a perfect agreement between the nominal variable Liver_disease and the cluster solution. A large number of patients not having liver disease has been classified in cluster 1, 70 in cluster 2, and 37 have been classified in cluster 3. For patients having a liver disease, large number of data - 154 units has been classified in cluster 1, 11 in cluster 2, and 0 in cluster 3.
+
+##### Correct Rand Index
+
+```{r}
+liver.disease <- as.numeric(liver$Liver_Disease)
+stats<- cluster.stats(d = dist(liver_scale), liver.disease, hclust$cluster)
+stats$corrected.rand
+```
+
+According to the Correct Rand Index, there is no agreement between the numerical values and the cluster solution. From -1 to +1, the agreement is very close to 0.
+
+##### Meila’s VI Index
+
+```{r}
+stats$vi
+```
+
+## Soft Clustering Approach
+
+### Model-Based Clustering
+
+```{r}
+summary(liver$Liver_Disease)
+```
+
+```{r}
+head(liver)
+```
+
+```{r}
+X <- data.matrix(liver_sub)
+sX <- scale(X)
+pairs(sX, gap=0, pch = 16, col = as.numeric(liver$Liver_Disease), cex.main = 0.9,
+      main="Liver Disease Data According To The Values of Liver_Disease variable")
+```
+
+To evaluate if there is a relation between the categorical variable Liver_Disease and the underlying clustering, the variable is deleted and the data are standardized. The data are visualized by pairwise scatterplots, in which the colors represent the two possible values of Liver_Disease: `0` or `1`. It seems difficult to distinguish separate groups. Different Parsimonious Gaussian mixtures are fitted on the standardized data by using the function Mclust() in R.
+
+```{r}
+library(mclust)
+library(psych)
+mod <- Mclust(liver_scale)
+summary(mod$BIC)
+```
+
+```{r}
+plot(mod, what = "BIC", ylim = range(mod$BIC, na.rm = TRUE),
+     legendArgs = list(x = "topleft"))
+```
+
+```{r}
+summary(mod)
+```
+
+```{r}
+fviz_mclust(mod, "BIC", palette = "jco")
+```
+
+```{r}
+head(round(mod$z, 6), 20)
+```
+
+According to the penalized selection criterion called “BIC” (Bayesian Information Criterion), the three best Gaussian mixture models are: VVV with 5 clusters, VVE with 8 clusters, and VVV with 4 clusters. The number of clusters that maximizes the BIC of this model is 5, cluster 1 with 91 units, cluster 2 with 48 units, cluster 3 with 106 units, cluster 4 with 235 units and cluster 5 with 99 units.
+
+```{r}
+pairs(sX, gap=0, pch = 16, col = mod$classification, cex.main = 1,
+      main="Original Space\nModel-Based Clustering: VVV Gaussian Mixture Model K=5") 
+```
+
+```{r}
+fviz_mclust(mod, "classification", geom = "point", pointsize = 1.5,
+palette = "jco", main = "PCs Space") +
+labs(subtitle= "Model-Based Clustering: VVV Gaussian Mixture Model K=5")
+```
+
+```{r}
+fviz_mclust(mod, "uncertainty", palette = "jco",
+            main = "PCs Space - Uncertainty Plot") +
+  labs(subtitle= "Model-Based Clustering: VVV Gaussian Mixture Model, K=5")
+```
+
+Both in the original space and in the PCs space there is a great separation between clusters. Furthermore, from the Uncertainty plot, it is noted that some units (big points) are problematic for the soft approach because they belong to different clusters with the same (or similar) probability.
+
+#### External Validation Measures
+
+##### Confusion Matrix
+
+```{r}
+table(liver$Liver_Disease, mod$classification)
+```
+
+According to the Confusion matrix, there is a good agreement between the nominal variable Liver_Disease and the cluster solution. A large number of patients not having liver disease (n = 131) has been classified in cluster 4. A large number of patients having liver disease (n=104) have also been classified in the same cluster 4.
+
+##### Correct Rand Index
+
+```{r}
+adjustedRandIndex(liver$Liver_Disease, mod$classification)
+```
+
+According the Correct Rand Index, there is a good agreement between the Liver_Disease nominal variable and the cluster solution.
+
+
+## The Best Clustering Algorithm
+
+In order to choose the best clustering algorithm among those proposed, the `clValid` package of R. is used. The clValid function enables to compare clustering algorithms using two cluster validation measures is Internal Measures (Connectivity, Silhouette coefficient and Dunn index).
+The methods considered are: hierarchical method (Euclidean- Manhattan), k-Means, PAM (Euclidean-Manhattan) and Model-Based Clustering.
+
+```{r}
+library(clValid)
+clmethods <- c ("hierarchical", "kmeans", "pam")
+V_eucl<-clValid(liver_scale, nClust=2:6, clMethods= clmethods,
+                metric="euclidean", validation="internal")
+summary(V_eucl)
+```
+
+According to the result, the best clustering algorithm using the `Euclidean Distance` is the `Hierarchical Clustering` method with 2 clusters.
+
+```{r}
+clmethods <- c ("hierarchical", "kmeans", "pam")
+V_eucl <- clValid(liver_scale, nClust=2:6, clMethods= clmethods,
+                  metric="manhattan", validation="internal")
+summary(V_eucl)
+```
+
+According to the result, the best clustering algorithm using the `Manhattan Distance` is the `Hierarchical Clustering` method with 2 clusters.
+
+```{r}
+clmethods <- c ("hierarchical", "kmeans", "pam")
+V_eucl <- clValid(liver_scale, nClust=2:6, clMethods= clmethods,
+                  metric="manhattan", validation="stability")
+summary(V_eucl)
+```
+
+In this measure according to the `APN` and `ADM` the best method is `Hierarchical` with 2 clusters, according to `AD` the best method is `pam` with 6 clusters and according to `FOM` the best method is `kmeans` with 5 number of clusters.
+
+```{r}
+scale_rob <- scale(liver_sub, center = apply(liver_sub, 2, median),
+                   scale = apply(liver_sub, 2, meanabsdev))
+rownames(scale_rob) <- rownames(liver)
+fviz_dist(dist(scale_rob), show_labels = FALSE) +
+labs(title = "Liver Disease Data - 
+     Robust Standardization\nOrdered Dissimilarity Matrix",
+     gradient = list(low = "blue", mid = "green", high = "red"))
+```
+
+```{r}
+hopkins(scale_rob, n = nrow(scale_rob)-1)
+```
+
+According to the Hopkins statistic (H) the data set is uniformly distributed because the values is close to 0, also the dissimilarity matrix image the data contain a clusters structure.
+
+## Clustering Result
+
+According to the proposed indices, among the clustering algorithms adopted, the `Hierarchical Method`, computed using the `Euclidean Distance` with 2 clusters seems to be the most suitable.
+
+
+

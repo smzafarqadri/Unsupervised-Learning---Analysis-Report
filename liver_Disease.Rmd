@@ -1,0 +1,2428 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Dataset
+
+The Dataset I am using in my analysis is $Liver Disease$. This data is available on the link which is `https://www.kaggle.com/uciml/indian-liver-patient-records`. Patients with Liver disease have been continuously increasing because of excessive consumption of alcohol, inhale of harmful gases, intake of contaminated food, pickles and drugs. This dataset was used to evaluate prediction algorithms in an effort to reduce burden on doctors. Each row in the data provides relevant information about the patient. This dataset is used to predict whether a patient is likely to have liver disease based on the input parameters used in the dataset.
+
+```{r}
+liverDisease <- read.csv("Liver_Disease.csv")
+```
+
+First we will see the actual dimensions of our dataset that how many objects and variables that the dataset have so, for this I will use the R basic function of dimension as follows:
+
+```{r}
+dim(liverDisease)
+```
+
+Here we can see that the total observations are `583` and the total number of attributes are `11`.
+
+# Exploration of Dataset
+
+Now, we will see the complete structure of the dataset and also make some transformations in the dataset if needed so.
+```{r}
+str(liverDisease)
+```
+
+The following description would help us to the to predict `Liver Disease`:
+
+$Age$ : Age of the patient
+$Gender$ : Gender of the patient
+$Total_Bilirubin$ : Is a substance produced during the normal breakdown of red blood cells
+$Direct_Bilirubin$ : In the liver, bilirubin is changed into a form that your body can get rid of
+$Alkaline_Phosphotase$ : is one kind enzyme found in your body, If you have liver disease
+$Alamine_Aminotransferase$ :  is an enzyme that increases in the blood when the liver is damaged
+$Aspartate_Aminotransferase$ : is a blood test that checks for liver damage
+$Total_Protiens$ :  test measures the total amount albumin and globulin in your body
+$Albumin$ : is a protein made by your liver
+$Albumin_and_Globulin_Ratio$ : measures the protein ratio in your body
+$Dataset$ : field used to split the data into two sets (patient with liver disease = 2, or no disease = 1)
+
+Now we will see the observations in the dataset as follows:
+
+```{r}
+head(liverDisease)
+```
+
+We can see that the dataset doesn't require much transformation because the dataset is almost clean but changes need to be done before processing further.
+
+Here I will change the column name of `dataset` into `Liver_Disease` and will also change the values in the column that patient with liver disease = 1 or no disease = 0  as follows:
+
+```{r}
+names(liverDisease)[names(liverDisease) == "Dataset"] <- "Liver_Disease"
+```
+
+```{r}
+liverDisease$Liver_Disease[liverDisease$Liver_Disease == "1"] <- 0
+
+liverDisease$Liver_Disease[liverDisease$Liver_Disease == "2"] <- 1
+```
+
+Now I will also change the `Gender` columns' observations into binary form as for `Male=1` and for `Female=0` as follows:
+
+```{r}
+
+liverDisease$Gender[liverDisease$Gender == "Female"] <- 0
+
+liverDisease$Gender[liverDisease$Gender == "Male"] <- 1
+
+```
+
+Here we can see that the column name and the values has been transformed successfully.Now I will make some transformation on the data for the clarity of the data, Here we can see that the `Gender` and `Liver_Disease` variables doesn't belong to a right data type so I will initially transform them to `Factor` as follows:
+
+```{r}
+liverDisease$Gender <- factor(liverDisease$Gender)
+
+liverDisease$Liver_Disease <- as.numeric(liverDisease$Liver_Disease)
+liverDisease$Liver_Disease <- factor(liverDisease$Liver_Disease)
+```
+
+Here I will print the structure of the dataset and also check the if there is any missing values available in the dataset as follows:
+
+```{r}
+str(liverDisease)
+```
+
+```{r}
+colSums(sapply(liverDisease, is.na))
+```
+
+Here we can see that the `Albumin_and_Globulin_Ratio` has `4` missing values so here we will decide with the help of percentage data missing, whether we will omit these `NAs` or change them with the mean or median values as follows:
+
+```{r}
+sum(is.na(liverDisease)) / (nrow(liverDisease) *ncol(liverDisease))
+```
+
+Here the missing data percentage is almost zero so we will omit the NAs from the dataset as follows:
+
+```{r}
+liver <- na.omit(liverDisease)
+```
+
+```{r}
+str(liver)
+```
+
+After removing the `NAs` from the dataset so now the total observations are `579` and total attributes are `11`.
+
+The first type of analysis we do is `Univariate analysis`, we will keep going with the `preliminary analysis`, as to understand that if it is useful to run a `Principle Component Analysis` and `ClusteringAnalysis` on the data set.
+
+# Univariate Analysis
+
+## Age
+
+Lets explore the `Age` variable:
+
+```{r}
+head(liver$Age)
+```
+```{r}
+length(liver$Age)
+```
+```{r}
+table(liver$Age)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Age)
+```
+```{r}
+length(unique(liver$Age))
+```
+```{r}
+min(liver$Age)
+```
+```{r}
+max(liver$Age)
+```
+
+Here the total observation of Age is `579` and is a continuous variable that range lies between `4-890`. Now, we will see the summary of the Age variable, for further analysis as follows:
+
+```{r}
+summary(liver$Age)
+```
+```{r}
+sd(liver$Age)
+```
+```{r}
+var(liver$Age)
+```
+```{r}
+getMode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+v <- c(liver$Age)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (44.78), Median (45.00) and Mode (60) are not equal so the distribution is asymmetrical. Here Mode > Median > Mean so the distribution could be skewed to the left. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Age)
+```
+
+Hence, the skewness is the negative so the distribution is negatively skewed was rightly observed. Also I will plot the Box plot to comparing the distribution of data across dataset as follows:
+
+```{r}
+boxplot(liver$Age, main = "Age BoxPlot")
+points(mean(liver$Age))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are no outliers and the upper whisker shows the maximum. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Age, prob = TRUE, breaks = 72, xlab = "Age", main = "Age Histogram")
+lines(density(liver$Age), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Age` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a left skewed. We have already observed a negative value of `0.03350366`, so we will affirm that the distribution is left skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Age)
+```
+
+The distribution is also `Platykurtic`, since the value is less than 3.
+
+Now I will plot the Boxplot of the Age variable with the Liver_Disease variable to check the Liver_Disease across the Age as follows:
+
+```{r}
+
+library(ggplot2)
+ggplot(liver, aes(x = Liver_Disease, y = liver$Age, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Age") +
+  ggtitle("Boxplot of the Age across the Liver_Disease")
+```
+
+From the graphs we see what the data looks like. The mean age is about 44 which is close to the median of 45. The oldest person in the data is 90 whilst the youngest is 4. The age variable seems to have a bell shaped curve and there seems to be a difference in the ages for the two different liver disease groups. Liver_Disease = 0 has a higher mean than Liver_Disease = 1.
+
+### Age Fit for the Data
+
+Now we will try to fit different models to Age distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+library(splines)
+
+
+par(mfrow=c(3,2))
+
+age.BCCG <- histDist(liver$Age, family=BCCG, nbins = 72, xlab = "Age", main="Box-Cox Cole and Green Distribution of Age")
+
+age.GG <- histDist(liver$Age, family=GG, nbins = 72, xlab = "Age", main="Generalized Gamma Distribution of Age")
+
+age.WEI <- histDist(liver$Age, family=WEI, nbins = 72, xlab = "Age", main="Weibull distribution of Age")
+
+age.LOGNO <- histDist(liver$Age, family=LOGNO, nbins = 72, xlab = "Age", main="Log-Normal Distribution of Age")
+
+age.IG <- histDist(liver$Age, family=IG, nbins=72, xlab = "Age", main = "Inverse Gussian Distribution of Age")
+
+age.EXP<- histDist(liver$Age, family=EXP, nbins=72, xlab = "Age", main = "Exponential Distribution of Age")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Box-Cox Cole and Green","Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(age.BCCG), AIC(age.GG), AIC(age.WEI), AIC(age.LOGNO),
+                             AIC(age.IG), AIC(age.EXP)),
+                     BIC = c(age.BCCG$sbc, age.GG$sbc, age.WEI$sbc, age.LOGNO$sbc,
+                             age.IG$sbc, age.EXP$sbc),
+                     df = c(age.BCCG$df.fit, age.GG$df.fit, age.WEI$df.fit,
+                            age.LOGNO$df.fit, age.IG$df.fit, age.EXP$df.fit),
+                     LogLike = c(logLik(age.BCCG), logLik(age.GG), logLik(age.WEI),
+                                  logLik(age.LOGNO), logLik(age.IG), logLik(age.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-2428.165) and the lowest AIC (4862.331) and BIC (4875.415) is the Generalized Gamma Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Generalized Gamma Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(age.GG, age.EXP)
+```
+
+Under the null hypothesis, we compare the Generalized Gamma distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Generalized Gamma model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+library(nnet)
+mix.gam <- gamlssMXfits(n = 5, liver$Age~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has improved, since it is higher than that of the single Gamma distribution. The current `AIC` value is `4883.44`, whereas the previous value was `4862.331` and the current value of `BIC` value is `4905.25`, whereas the previous value was `4875.415`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Age, breaks = 72, xlab = "Age", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Age, breaks = 72, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Age), max(liver$Age), length = length(liver$Age)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Age), max(liver$Age), length = length(liver$Age)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Age), max(liver$Age), length = length(liver$Age)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Age~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Age, breaks = 72, xlab = "Age", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Age, breaks = 72, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Age), max(liver$Age), length = length(liver$Age)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Age), max(liver$Age), length = length(liver$Age)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Age), max(liver$Age), length = length(liver$Age)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Age), max(liver$Age),
+      length = length(liver$Age)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(age.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, age.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 and k=2 has increased, since values are higher than that of the single Gamma distribution. The previous AIC value is `4862`, whereas the current value which is higher is `4871` and the previous BIC value was `4875`, whereas the current value which is higher is `4906`.
+
+## Gender
+
+Lets analyze the features of `Gender` variable as follows:
+
+```{r}
+length(liver$Gender)
+```
+```{r}
+table(liver$Gender)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.Here we can see the `Gender` variable is a categorical variable that can take two values `0` for `Female` and `1` for `Male`.
+
+```{r}
+library(ggplot2)
+ggplot(liver, aes(x = Gender, fill = Gender)) + 
+geom_bar() +
+  ggtitle("Boxplot of the Gender")
+```
+
+```{r}
+ggplot(liver, aes(x=Age, color=Gender)) + 
+  geom_density()
+```
+
+```{r}
+liver$Gender[liver$Gender == "Female"] <- 0
+liver$Gender[liver$Gender == "Male"] <- 1
+
+
+ggplot(liver, aes(x = Gender, y = Age, fill = Gender)) +
+  geom_boxplot() +
+  ylab("Age") +
+  ggtitle("Boxplot of the Gender across the Age") 
+```
+
+```{r}
+ggplot(liver, aes(Liver_Disease, Age)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+There are more males than females in the entire dataset. The mean age is higher for males than females in the data, both genders have a similar density shape when you look at the age. There are a few graphical ways of looking at this just to make sure we are doing the work right. When looking at the breakdown of the Age, Gender and Liver_Disease we see some interesting things. When we look at the females, the mean age is higher for the Liver_Disease = 0 and the same is true for Liver_Disease = 1. Within the Liver_Disease = 1 group the mean ages are pretty close but in the Liver_Disease = 0 ,the males have a higher mean age. We can also seen that the barplot shows our data set contains data belonging to 140 Females and 439 Males. So from both plot and table() we can see that our data is not balanced and the study includes more Males than Females.
+
+## Total Bilirubin
+
+Lets explore the `Total_Bilirubin` variable:
+
+```{r}
+head(liver$Total_Bilirubin)
+```
+```{r}
+length(liver$Total_Bilirubin)
+```
+```{r}
+table(liver$Total_Bilirubin)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Total_Bilirubin)
+```
+```{r}
+length(unique(liver$Total_Bilirubin))
+```
+```{r}
+min(liver$Total_Bilirubin)
+```
+```{r}
+max(liver$Total_Bilirubin)
+```
+
+Here the total observation of Age is `579` and is a continuous variable that range lies between `0.4-75`. Now, we will see the summary of the Total_Bilirubin variable, for further analysis as follows:
+
+```{r}
+summary(liver$Total_Bilirubin)
+```
+```{r}
+sd(liver$Total_Bilirubin)
+```
+```{r}
+var(liver$Total_Bilirubin)
+```
+```{r}
+getMode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+v <- c(liver$Total_Bilirubin)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (3.315), Median (1.000) and Mode (0.8) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Total_Bilirubin)
+```
+
+Hence, the skewness is the negative so the distribution is positively skewed was rightly observed. Also I will plot the Box plot to comparing the distribution of data across dataset as follows:
+
+```{r}
+boxplot(liver$Total_Bilirubin, main = "Total Bilirubin BoxPlot")
+points(mean(liver$Total_Bilirubin))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are many outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Total_Bilirubin, prob = TRUE, breaks = 113, xlab = "Total Bilirubin", main = "Total Bilirubin Histogram")
+lines(density(liver$Total_Bilirubin), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Total_Bilirubin` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a right skewed. We have already observed a positive value of `4.878088`, so we will affirm that the distribution is right skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Total_Bilirubin)
+```
+
+The distribution is also `leptokurtic`, since the value is greater than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Total_Bilirubin, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Total Bilirubin") +
+  ggtitle("Boxplot of the Total Bilirubin across the Liver_Disease")
+```
+
+```{r}
+ggplot(liver, aes(Liver_Disease, Total_Bilirubin)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+There is a wide range for the Total Bilirubin. The data is skewed, very skewed, we have a maximum value of 75 with the mean of 3.299, median of 1. There is a difference between the mean Total Bilirubin for the Liver_Disease and this also seems to be true when you break it down further by gender.
+
+### Total Bilirubin Fit for the Data
+
+Now we will try to fit different models to Total_Bilirubin distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+par(mfrow=c(3,2))
+
+tb.GG <- histDist(liver$Total_Bilirubin, family=GG, nbins = 113, xlab = "Total Bilirubin", main="Generalized Gamma Distribution of Total Bilirubin")
+
+tb.WEI <- histDist(liver$Total_Bilirubin, family=WEI, nbins = 113, xlab = "Total Bilirubin", main="Weibull distribution of Total Bilirubin")
+
+tb.LOGNO <- histDist(liver$Total_Bilirubin, family=LOGNO, nbins = 113, xlab = "Total Bilirubin", main="Log-Normal Distribution of Total Bilirubin")
+
+tb.IG <- histDist(liver$Total_Bilirubin, family=IG, nbins=113, xlab = "Total Bilirubin", main = "Inverse Gussian Distribution of Total Bilirubin")
+
+tb.EXP<- histDist(liver$Total_Bilirubin, family=EXP, nbins=113, xlab = "Total Bilirubin", main = "Exponential Distribution of Total Bilirubin")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Generalized Gamma", "Weibull", "Log-Normal",
+                              "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(tb.GG), AIC(tb.WEI), AIC(tb.LOGNO), AIC(tb.IG),
+                             AIC(tb.EXP)),
+                     BIC = c(tb.GG$sbc, tb.WEI$sbc, tb.LOGNO$sbc, tb.IG$sbc,
+                             tb.EXP$sbc),
+                     df = c(tb.GG$df.fit, tb.WEI$df.fit, tb.LOGNO$df.fit,
+                            tb.IG$df.fit, tb.EXP$df.fit),
+                     LogLike = c(logLik(tb.GG), logLik(tb.WEI), logLik(tb.LOGNO),
+                            logLik(tb.IG), logLik(tb.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-913.8516) and the lowest AIC (1833.703) and BIC (1846.787) is the Generalized Gamma Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Generalized Gamma Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(tb.GG, tb.EXP)
+```
+
+Under the null hypothesis, we compare the Generalized Gamma distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Generalized Gamma model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Total_Bilirubin~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has not improved, since it is higher than that of the single Gamma distribution. The current `AIC` value is `1867.52`, whereas the previous value was `1833.703` and the current `BIC` value is `1889.32`, whereas the previous value was `1846.787`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Total_Bilirubin, breaks = 113, xlab = "Total Bilirubin", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Total_Bilirubin, breaks = 113, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Total_Bilirubin), max(liver$Total_Bilirubin),
+      length = length(liver$Total_Bilirubin)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat1, sigma = sigma.hat1), lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Total_Bilirubin), max(liver$Total_Bilirubin),
+      length = length(liver$Total_Bilirubin)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Total_Bilirubin), max(liver$Total_Bilirubin),
+      length = length(liver$Total_Bilirubin)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Total_Bilirubin~1, family = GA, K = 3,
+                          data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Total_Bilirubin, breaks = 113, xlab = "Total Bilirubin", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Total_Bilirubin, breaks = 113, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Total_Bilirubin), max(liver$Total_Bilirubin),
+      length = length(liver$Total_Bilirubin)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat1, sigma = sigma.hat1), lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Total_Bilirubin), max(liver$Total_Bilirubin),
+      length = length(liver$Total_Bilirubin)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Total_Bilirubin), max(liver$Total_Bilirubin),
+      length = length(liver$Total_Bilirubin)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Total_Bilirubin),
+      max(liver$Total_Bilirubin), length = length(liver$Total_Bilirubin)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(tb.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, tb.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 has increased, since k=2 and single Gamma distribution values are higher than that of the current AIC and BIC values. The current AIC value is `1740.297`, whereas the previous value which is higher is `1833.703` and the current BIC value is `1775.188`, whereas the current value which is higher is `1846.787`.
+Here we can clearly see that our data fits better in the Gamma Mixture Distribution with k=3.
+
+## Direct Bilirubin
+
+Lets explore the `Direct Bilirubin` variable:
+
+```{r}
+head(liver$Direct_Bilirubin)
+```
+```{r}
+length(liver$Direct_Bilirubin)
+```
+```{r}
+table(liver$Direct_Bilirubin)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Direct_Bilirubin)
+```
+```{r}
+length(unique(liver$Direct_Bilirubin))
+```
+```{r}
+min(liver$Direct_Bilirubin)
+```
+```{r}
+max(liver$Direct_Bilirubin)
+```
+
+Here the total observation of Age is `579` and is a continuous variable that range lies between `0.1-19.7`. Now, we will see the summary of the Age variable and also age is a continues variable, for further analysis as follows:
+
+```{r}
+summary(liver$Direct_Bilirubin)
+```
+```{r}
+sd(liver$Direct_Bilirubin)
+```
+```{r}
+var(liver$Direct_Bilirubin)
+```
+```{r}
+getMode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+v <- c(liver$Direct_Bilirubin)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (1.494), Median (0.300) and Mode (0.2) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Direct_Bilirubin)
+```
+
+Hence, the skewness is the positive so the distribution is positively skewed was rightly observed. Also I will plot the Box plot to comparing the distribution of data across data set as follows:
+
+```{r}
+boxplot(liver$Direct_Bilirubin, main = "Direct Bilirubin BoxPlot")
+points(mean(liver$Direct_Bilirubin))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Boxplot diagram, there are many outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Direct_Bilirubin, prob = TRUE, breaks = 80, xlab = "Direct Bilirubin", main = "Direct Bilirubin Histogram")
+lines(density(liver$Direct_Bilirubin), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Direct Bilirubin` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a left skewed. We have already observed a positive value of `3.190869`, so we will affirm that the distribution is right skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Direct_Bilirubin)
+```
+
+The distribution is also `Leptokurtic`, since the value is greater than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Direct_Bilirubin, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Direct Bilirubin") +
+  ggtitle("Boxplot of the Direct Bilirubin across the Liver_Disease")
+```
+
+```{r}
+ggplot(liver, aes(Liver_Disease, Direct_Bilirubin)) + 
+  geom_boxplot(aes(color = Gender))
+```
+
+Similar to the Total Bilirubin we have skewed data for the Direct Bilirubin. The mean is 1.486, with a maximum being 19.7 and the median being 0.3. There is a difference in the mean and range of the Direct Bilirubin for the Liver_Disease. There are differences also when you look t it further by gender. The mean Direct Bilirubin is higher for the male group across the Liver_Disease. There is a bigger range for both genders for Direct Bilirubin when the response is 0.
+
+### Direct Bilirubin Fit for the Data
+
+Now we will try to fit different models to Age distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+db.BCCG <- histDist(liver$Direct_Bilirubin, family=BCCG, nbins = 80, xlab = "Direct Bilirubin", main="Box-Cox Cole and Green Distribution of Direct Bilirubin")
+
+db.GG <- histDist(liver$Direct_Bilirubin, family=GG, nbins = 80, xlab = "Direct Bilirubin", main="Generalized Gamma Distribution of Direct Bilirubin")
+
+db.WEI <- histDist(liver$Direct_Bilirubin, family=WEI, nbins = 80, xlab = "Direct Bilirubin", main="Weibull distribution of Direct Bilirubin")
+
+db.LOGNO <- histDist(liver$Direct_Bilirubin, family=LOGNO, nbins = 80, xlab = "Direct Bilirubin", main="Log-Normal Distribution of Direct Bilirubin")
+
+db.IG <- histDist(liver$Direct_Bilirubin, family=IG, nbins = 80, xlab = "Direct Bilirubin", main = "Inverse Gussian Distribution of Direct Bilirubin")
+
+db.EXP<- histDist(liver$Direct_Bilirubin, family=EXP, nbins = 80, xlab = "Direct Bilirubin", main = "Exponential Distribution of Direct Bilirubin")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Box-Cox Cole and Green","Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(db.BCCG), AIC(db.GG), AIC(db.WEI), AIC(db.LOGNO),
+                             AIC(db.IG), AIC(db.EXP)),
+                     BIC = c(db.BCCG$sbc, db.GG$sbc, db.WEI$sbc, db.LOGNO$sbc,
+                             db.IG$sbc, db.EXP$sbc),
+                     df = c(db.BCCG$df.fit, db.GG$df.fit, db.WEI$df.fit,
+                            db.LOGNO$df.fit, db.IG$df.fit, db.EXP$df.fit),
+                     LogLike = c(logLik(db.BCCG), logLik(db.GG), logLik(db.WEI),
+                                  logLik(db.LOGNO), logLik(db.IG), logLik(db.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-528.4398) and the lowest AIC (1062.880) and BIC (1075.964) is the Generalized Gamma Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Generalized Gamma Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(db.GG, db.EXP)
+```
+
+Under the null hypothesis, we compare the Generalized Gamma distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Generalized Gamma model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Direct_Bilirubin~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has improved, since it is lower than that of the single Gamma distribution. The current `AIC` value is `1038.49`, whereas the previous value was `1062.880` and the current `BIC` value is `1060.3`, whereas the previous value was `1075.964`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Direct_Bilirubin, breaks = 80, xlab = "Direct Bilirubin", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Direct_Bilirubin, breaks = 80, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin), length = length(liver$Direct_Bilirubin)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin), length = length(liver$Direct_Bilirubin)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin), length = length(liver$Direct_Bilirubin)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Direct_Bilirubin~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Direct_Bilirubin, breaks = 80, xlab = "Direct Bilirubin", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Direct_Bilirubin, breaks = 80, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin), length = length(liver$Direct_Bilirubin)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin), length = length(liver$Direct_Bilirubin)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin), length = length(liver$Direct_Bilirubin)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Direct_Bilirubin), max(liver$Direct_Bilirubin),
+      length = length(liver$Direct_Bilirubin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(age.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, age.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 and k=2 has improved, since values are lower than that of the single Gamma distribution. The previous AIC value of k=2 is `1038.4897`, whereas the current value which is lower is `970.9413` and the previous BIC value of k=2 was `1060.296`, whereas the current value which is lower is `1005.832`.
+Here we can clearly see that our data fits better in the Gamma Mixture Distribution with k=3.
+
+## Alkaline Phosphotase
+
+Lets explore the `Alkaline Phosphotase` variable:
+
+```{r}
+head(liver$Alkaline_Phosphotase)
+```
+```{r}
+length(liver$Alkaline_Phosphotase)
+```
+```{r}
+table(liver$Alkaline_Phosphotase)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Alkaline_Phosphotase)
+```
+```{r}
+length(unique(liver$Alkaline_Phosphotase))
+```
+```{r}
+min(liver$Alkaline_Phosphotase)
+```
+```{r}
+max(liver$Alkaline_Phosphotase)
+```
+
+Here the total observation of Age is `579` and is a continuous variable that range lies between `0.08-82`. Now, we will see the summary of the Age variable and also age is a continues variable, for further analysis as follows:
+
+```{r}
+summary(liver$Alkaline_Phosphotase)
+```
+```{r}
+sd(liver$Alkaline_Phosphotase)
+```
+```{r}
+var(liver$Alkaline_Phosphotase)
+```
+```{r}
+v <- c(liver$Alkaline_Phosphotase)
+mode <- getMode(v)
+print(mode)
+```
+
+From the above summary we can observe that the Mean (291.4), Median (208.0) and Mode (198) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Alkaline_Phosphotase)
+```
+
+Hence, the skewness is the positive so the distribution is positively skewed was rightly observed. Also I will plot the Boxplot to comparing the distribution of data across dataset as follows:
+
+```{r}
+boxplot(liver$Alkaline_Phosphotase, main = "Alkaline Phosphotase BoxPlot")
+points(mean(liver$Alkaline_Phosphotase))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are many outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Alkaline_Phosphotase, prob = TRUE, breaks = 262, xlab = "Alkaline Phosphotase", main = "Alkaline Phosphotase Histogram")
+lines(density(liver$Alkaline_Phosphotase), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Alkaline_Phosphotase` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a right skewed. We have already observed a positive value of `3.743771`, so we will affirm that the distribution is right skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Alkaline_Phosphotase)
+```
+
+The distribution is also `Leptokurtic`, since the value is greater than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Alkaline_Phosphotase, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Alkaline Phosphotase") +
+  ggtitle("Boxplot of the Alkaline Phosphotase across the Liver_Disease")
+```
+
+```{r}
+ggplot(liver, aes(Liver_Disease, Alkaline_Phosphotase)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+The range for the Alkaline Phosphotase is wide, with a mean of 290.6, median or 208, minimum of 63 and maximum of 2110. The numbers for Alkaline Phosphotase are also skewed as shown in the plot. When you look at the numbers across the response we see a difference across it. The mean is higher when the Liver_Disease is 0 and the range is also wider for Liver_Disease = 0. When you look further and compare by gender, there are differences in the mean within the Liver_Disease = 0, but not much for the Liver_Disease = 1 group.
+
+### Alkaline Phosphotase Fit for the Data
+
+Now we will try to fit different models to Alkaline Phosphotase distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+ap.BCCG <- histDist(liver$Alkaline_Phosphotase, family=BCCG, nbins = 262, xlab = "Alkaline Phosphotase", main="Box-Cox Cole and Green Distribution of Alkaline Phosphotase")
+
+ap.GG <- histDist(liver$Alkaline_Phosphotase, family=GG, nbins = 262, xlab = "Alkaline Phosphotase", main="Generalized Gamma Distribution of Alkaline Phosphotase")
+
+ap.WEI <- histDist(liver$Alkaline_Phosphotase, family=WEI, nbins = 262, xlab = "Alkaline Phosphotase", main="Weibull distribution of Alkaline Phosphotase")
+
+ap.LOGNO <- histDist(liver$Alkaline_Phosphotase, family=LOGNO, nbins = 262, xlab = "Alkaline Phosphotase", main="Log-Normal Distribution of Alkaline Phosphotase")
+
+ap.IG <- histDist(liver$Alkaline_Phosphotase, family=IG, nbins=262, xlab = "Alkaline Phosphotase", main = "Inverse Gussian Distribution of Alkaline Phosphotase")
+
+ap.EXP<- histDist(liver$Alkaline_Phosphotase, family=EXP, nbins=262, xlab = "Alkaline Phosphotase", main = "Exponential Distribution of Alkaline Phosphotase")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Box-Cox Cole and Green","Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(ap.BCCG), AIC(ap.GG), AIC(ap.WEI), AIC(ap.LOGNO),
+                             AIC(ap.IG), AIC(ap.EXP)),
+                     BIC = c(ap.BCCG$sbc, ap.GG$sbc, ap.WEI$sbc, ap.LOGNO$sbc,
+                             ap.IG$sbc, ap.EXP$sbc),
+                     df = c(ap.BCCG$df.fit, ap.GG$df.fit, ap.WEI$df.fit,
+                            ap.LOGNO$df.fit, ap.IG$df.fit, ap.EXP$df.fit),
+                     LogLike = c(logLik(ap.BCCG), logLik(ap.GG), logLik(ap.WEI),
+                                  logLik(ap.LOGNO), logLik(ap.IG), logLik(ap.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-3563.171) and the lowest AIC (7132.341) and BIC (7145.425) is the Box-Cox Cole and Green Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Box-Cox Cole and Green Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(ap.BCCG, ap.EXP)
+```
+
+Under the null hypothesis, we compare the Box-Cox Cole and Green Distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Box-Cox Cole and Green model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Alkaline_Phosphotase~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has improved, since it is lower than that of the Box-Cox Cole and Green Distribution. The current `AIC` value is `7104.69`, whereas the previous value was `7132.341` and the current value of `BIC` is `7126.5` whereas the previous value was `7145.425`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Alkaline_Phosphotase, breaks = 262, xlab = "Alkaline Phosphotase", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Alkaline_Phosphotase, breaks = 262, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Alkaline_Phosphotase), max(liver$Alkaline_Phosphotase),
+      length = length(liver$Alkaline_Phosphotase)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat1, sigma = sigma.hat1), lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Alkaline_Phosphotase), max(liver$Alkaline_Phosphotase),
+      length = length(liver$Alkaline_Phosphotase)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Alkaline_Phosphotase), max(liver$Alkaline_Phosphotase),
+      length = length(liver$Alkaline_Phosphotase)), 
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 3, lwd = 3, col = "green")
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Alkaline_Phosphotase~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Alkaline_Phosphotase, breaks = 262, xlab = "Alkaline Phosphotase", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Alkaline_Phosphotase, breaks = 262, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Alkaline_Phosphotase), max(liver$Alkaline_Phosphotase),
+      length = length(liver$Alkaline_Phosphotase)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat1, sigma = sigma.hat1), lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Alkaline_Phosphotase), max(liver$Alkaline_Phosphotase),
+      length = length(liver$Alkaline_Phosphotase)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Alkaline_Phosphotase), max(liver$Alkaline_Phosphotase),
+      length = length(liver$Alkaline_Phosphotase)), 
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Alkaline_Phosphotase),
+      max(liver$Alkaline_Phosphotase), length = length(liver$Alkaline_Phosphotase)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Box-Cox Cole and Green Distribution"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(ap.BCCG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, ap.BCCG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 and k=2 has improved, since values are lower than that of the Box-Cox Cole and Green Distribution and Gamma mixture with k=2. The previous AIC value was `7104.690`, whereas the current value which is lower is `7069.095` and the previous BIC value was `7126.497`, whereas the current value which is lower is `7103.986`.
+Here we can clearly see that our data fits better in the Gamma Mixture Distribution with k=3.
+
+## Alamine Aminotransferase
+
+Lets explore the `Alamine Aminotransferase` variable:
+
+```{r}
+head(liver$Alamine_Aminotransferase)
+```
+```{r}
+length(liver$Alamine_Aminotransferase)
+```
+```{r}
+table(liver$Alamine_Aminotransferase)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Alamine_Aminotransferase)
+```
+```{r}
+length(unique(liver$Alamine_Aminotransferase))
+```
+```{r}
+min(liver$Alamine_Aminotransferase)
+```
+```{r}
+max(liver$Alamine_Aminotransferase)
+```
+
+Here the total observation of Age is `579` and is a continuous variable that range lies between `10-2000`. Now, we will see the summary of the Alamine_Aminotransferase variable, for further analysis as follows:
+
+```{r}
+summary(liver$Alamine_Aminotransferase)
+```
+```{r}
+sd(liver$Alamine_Aminotransferase)
+```
+```{r}
+var(liver$Alamine_Aminotransferase)
+```
+```{r}
+v <- c(liver$Alamine_Aminotransferase)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (81.13), Median (35.00) and Mode (25) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Alamine_Aminotransferase)
+```
+
+Hence, the skewness is the positive so the distribution is positively skewed was rightly observed. Also I will plot the Boxplot to comparing the distribution of data across data set as follows:
+
+```{r}
+boxplot(liver$Alamine_Aminotransferase, main = "Alamine Aminotransferase BoxPlot")
+points(mean(liver$Alamine_Aminotransferase))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are many outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Alamine_Aminotransferase, prob = TRUE, breaks = 152, xlab = "Alamine Aminotransferase", main = "Alamine Aminotransferase Histogram")
+lines(density(liver$Alamine_Aminotransferase), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Alamine_Aminotransferase` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a right skewed. We have already observed a positive value of `6.510652`, so we will affirm that the distribution is right skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Alamine_Aminotransferase)
+```
+
+The distribution is also `Leptokurtic`, since the value is less than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Alamine_Aminotransferase, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Alamine Aminotransferase") +
+  ggtitle("Boxplot of the Alamine Aminotransferase across the Liver_Disease") 
+```
+```{r}
+ggplot(liver, aes(Liver_Disease, Alamine_Aminotransferase)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+Another skewed variable. Range is from 10 to 2000, with a mean of 81.12, median of 35.00. There is a wider range within the Liver_Disease = 0 group than the Liver_Disease = 1 group, and the means are clearly different between the two groups. We again see a difference between the genders within the Liver_Disease. The male groups within each group have a higher mean of Alamine Aminotransferase.
+
+### Alamine Aminotransferase Fit for the Data
+
+Now we will try to fit different models to Alamine Aminotransferase distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+aa.GG <- histDist(liver$Alamine_Aminotransferase, family=GG, nbins = 152, xlab = "Alamine Aminotransferase", main="Generalized Gamma Distribution of Alamine Aminotransferase")
+
+aa.WEI <- histDist(liver$Alamine_Aminotransferase, family=WEI, nbins = 152, xlab = "Alamine Aminotransferase", main="Weibull distribution of Alamine Aminotransferase")
+
+aa.LOGNO <- histDist(liver$Alamine_Aminotransferase, family=LOGNO, nbins = 152, xlab = "Alamine Aminotransferase", main="Log-Normal Distribution of Alamine Aminotransferase")
+
+aa.IG <- histDist(liver$Alamine_Aminotransferase, family=IG, nbins=152, xlab = "Alamine Aminotransferase", main = "Inverse Gussian Distribution of Alamine Aminotransferase")
+
+aa.EXP<- histDist(liver$Alamine_Aminotransferase, family=EXP, nbins=152, xlab = "Alamine Aminotransferase", main = "Exponential Distribution of liver$Alamine_Aminotransferase")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Generalized Gamma", "Weibull", "Log-Normal",
+                              "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(aa.GG), AIC(aa.WEI), AIC(aa.LOGNO),
+                             AIC(aa.IG), AIC(aa.EXP)),
+                     BIC = c(aa.GG$sbc, aa.WEI$sbc, aa.LOGNO$sbc,
+                             aa.IG$sbc, aa.EXP$sbc),
+                     df = c(aa.GG$df.fit, aa.WEI$df.fit,
+                            aa.LOGNO$df.fit, aa.IG$df.fit, aa.EXP$df.fit),
+                     LogLike = c(logLik(aa.GG), logLik(aa.WEI),
+                                  logLik(aa.LOGNO), logLik(aa.IG), logLik(aa.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-2845.555) and the lowest AIC (5697.111) and BIC (5710.195) is the Generalized Gamma Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Generalized Gamma Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(aa.GG, aa.EXP)
+```
+
+Under the null hypothesis, we compare the Generalized Gamma distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Generalized Gamma model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Alamine_Aminotransferase~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has improved, since it is higher than that of the single Gamma distribution. The current `AIC` value is `5771.99`, whereas the previous value was `5697.111` and the current `BIC` value is `5793.8`, whereas the previous value was `5710.195`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Alamine_Aminotransferase, breaks = 152, xlab = "Alamine Aminotransferase", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Alamine_Aminotransferase, breaks = 152, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Alamine_Aminotransferase), max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase), length =length(liver$Alamine_Aminotransferase)),
+      mu = mu.hat1, sigma = sigma.hat1), lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Alamine_Aminotransferase), max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase), length =length(liver$Alamine_Aminotransferase)),
+      mu = mu.hat2, sigma = sigma.hat2), lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Alamine_Aminotransferase), max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)), mu = mu.hat1, sigma = sigma.hat1) +
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Alamine_Aminotransferase~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Alamine_Aminotransferase, breaks = 152, xlab = "Alamine Aminotransferase", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Alamine_Aminotransferase, breaks = 152, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Alamine_Aminotransferase), max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Alamine_Aminotransferase), max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Alamine_Aminotransferase), max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)),
+      mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Alamine_Aminotransferase),
+      max(liver$Alamine_Aminotransferase),
+      length = length(liver$Alamine_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(aa.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, aa.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 and k=2 has increased, since values are higher than that of the single Gamma distribution. The previous AIC value is `5697.111`, whereas the current value which is higher is `5718.463` and the previous BIC value was `5710.195`, whereas the current value which is higher is `5753.353`.
+Here we can clearly see that our data fits better in the single Gamma Distribution.
+
+## Aspartate Aminotransferase
+
+Lets explore the `Aspartate Aminotransferase` variable:
+
+```{r}
+head(liver$Aspartate_Aminotransferase)
+```
+```{r}
+length(liver$Aspartate_Aminotransferase)
+```
+```{r}
+table(liver$Aspartate_Aminotransferase)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Aspartate_Aminotransferase)
+```
+```{r}
+length(unique(liver$Aspartate_Aminotransferase))
+```
+```{r}
+min(liver$Aspartate_Aminotransferase)
+```
+```{r}
+max(liver$Aspartate_Aminotransferase)
+```
+
+Here the total observation of Aspartate Aminotransferase is `579` and is a continuous variable that range lies between `10-4929`. Now, we will see the summary of the Aspartate_Aminotransferase variable, for further analysis as follows:
+
+```{r}
+summary(liver$Aspartate_Aminotransferase)
+```
+```{r}
+sd(liver$Aspartate_Aminotransferase)
+```
+```{r}
+var(liver$Aspartate_Aminotransferase)
+```
+```{r}
+v <- c(liver$Aspartate_Aminotransferase)
+mode <- getMode(v)
+print(mode)
+```
+
+From the above summary we can observe that the Mean (110.4), Median (42.0) and Mode (23) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Aspartate_Aminotransferase)
+```
+
+Hence, the skewness is the positive so the distribution is positively skewed was rightly observed. Also I will plot the Boxplot to comparing the distribution of data across data set as follows:
+
+```{r}
+boxplot(liver$Aspartate_Aminotransferase, main = "Aspartate Aminotransferase BoxPlot")
+points(mean(liver$Aspartate_Aminotransferase))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are many outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Aspartate_Aminotransferase, prob = TRUE, breaks = 177, xlab = "Aspartate_Aminotransferase", main = "Aspartate Aminotransferase Histogram")
+lines(density(liver$Aspartate_Aminotransferase), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Aspartate_Aminotransferase` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a right skewed. We have already observed a positive value of `10.485`, so we will affirm that the distribution is right skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Aspartate_Aminotransferase)
+```
+
+The distribution is also `Leptokurtic`, since the value is greater than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Aspartate_Aminotransferase,
+                  fill = Liver_Disease))  +
+  geom_boxplot() +
+  ylab("Aspartate Aminotransferase") +
+  ggtitle("Boxplot of the Aspartate Aminotransferase across the Liver_Disease")
+```
+```{r}
+ggplot(liver, aes(Liver_Disease, Aspartate_Aminotransferase)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+Another skewed variable with a range from 10 to 4929, with a mean of 110.4145, and median of 42. The range is wider within the Liver_Disease = 0 group in comparison to the Liver_Disease = 1 group. The mean is also higher in the Liver_Disease = 0 group. The box plots are hard to really read but they are there for you to look at.
+
+### Aspartate Aminotransferase Fit for the Data
+
+Now we will try to fit different models to Aspartate_Aminotransferase distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+aam.GG <- histDist(liver$Aspartate_Aminotransferase, family=GG, nbins = 177, xlab = "Aspartate_Aminotransferase", main="Generalized Gamma Distribution of Aspartate Aminotransferase")
+
+aam.WEI <- histDist(liver$Aspartate_Aminotransferase, family=WEI, nbins = 177, xlab = "Aspartate_Aminotransferase", main="Weibull distribution of Aspartate Aminotransferase")
+
+aam.LOGNO <- histDist(liver$Aspartate_Aminotransferase, family=LOGNO, nbins = 177, xlab = "Aspartate_Aminotransferase", main="Log-Normal Distribution of Aspartate Aminotransferase")
+
+aam.IG <- histDist(liver$Aspartate_Aminotransferase, family=IG, nbins=177, xlab = "Aspartate_Aminotransferase", main = "Inverse Gussian Distribution of Aspartate Aminotransferase")
+
+aam.EXP<- histDist(liver$Aspartate_Aminotransferase, family=EXP, nbins=177, xlab = "Aspartate_Aminotransferase", main = "Exponential Distribution of Aspartate Aminotransferase")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(aam.GG), AIC(aam.WEI), AIC(aam.LOGNO),
+                             AIC(aam.IG), AIC(aam.EXP)),
+                     BIC = c(aam.GG$sbc, aam.WEI$sbc, aam.LOGNO$sbc,
+                             aam.IG$sbc, aam.EXP$sbc),
+                     df = c(aam.GG$df.fit, aam.WEI$df.fit,
+                            aam.LOGNO$df.fit, aam.IG$df.fit, aam.EXP$df.fit),
+                     LogLike = c(logLik(aam.GG), logLik(aam.WEI),
+                                  logLik(aam.LOGNO), logLik(aam.IG), logLik(aam.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-3033.472) and the lowest AIC (6072.943) and BIC (6086.027) is the Generalized Gamma Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Generalized Gamma Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(aam.GG, aam.EXP)
+```
+
+Under the null hypothesis, we compare the Generalized Gamma distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Generalized Gamma model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Aspartate_Aminotransferase~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has improved, since it is higher than that of the single Gamma distribution. The current `AIC` value is `6178.29`, whereas the previous value was `6072.943` and the current `BIC` value is `6200.1`, whereas the previous value was `6086.027`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Aspartate_Aminotransferase, breaks = 177, xlab = "Aspartate Aminotransferase", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Aspartate_Aminotransferase, breaks = 177, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase), length = length(liver$Aspartate_Aminotransferase)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase), length = length(liver$Aspartate_Aminotransferase)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase), length = length(liver$Aspartate_Aminotransferase)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Aspartate_Aminotransferase~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Aspartate_Aminotransferase, breaks = 177, xlab = "Aspartate Aminotransferase", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Aspartate_Aminotransferase, breaks = 177, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase), length = length(liver$Aspartate_Aminotransferase)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase), length = length(liver$Aspartate_Aminotransferase)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase), length = length(liver$Aspartate_Aminotransferase)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Aspartate_Aminotransferase), max(liver$Aspartate_Aminotransferase),
+      length = length(liver$Aspartate_Aminotransferase)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(aam.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, aam.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 and k=2 has increased, since values are higher than that of the single Gamma distribution. The previous AIC value is `6072.943`, whereas the current value which is higher is `6102.752` and the previous BIC value was `6086.027`, whereas the current value which is higher is `6137.642`.
+Here we can clearly see that our data fits better in the single Gamma Distribution.
+
+## Total Protiens
+
+Lets analyze the features of `Total Protiens` variable as follows:
+
+```{r}
+head(liver$Total_Protiens)
+```
+```{r}
+length(liver$Total_Protiens)
+```
+```{r}
+table(liver$Total_Protiens)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Total_Protiens)
+```
+```{r}
+length(unique(liver$Total_Protiens))
+```
+```{r}
+min(liver$Total_Protiens)
+```
+```{r}
+max(liver$Total_Protiens)
+```
+
+Here the total observation of Total_Protiens is `579` and is a continuous variable that range lies between `2.7-9.`. Now, we will see the summary of the Total_Protiens variable, for further analysis as follows:
+
+```{r}
+summary(liver$Total_Protiens)
+```
+```{r}
+sd(liver$Total_Protiens)
+```
+```{r}
+var(liver$Total_Protiens)
+```
+```{r}
+v <- c(liver$Total_Protiens)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (6.482), Median (6.600) and Mode (7) are not equal so the distribution is asymmetrical. Here Mode > Median > Mean so the distribution could be negative and skewed to the left. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Total_Protiens)
+```
+
+Hence, the skewness is the negative so the distribution is negatively skewed was rightly observed. Also I will plot the Boxplot to comparing the distribution of data across data set as follows:
+
+```{r}
+boxplot(liver$Total_Protiens, main = "Total Protiens BoxPlot")
+points(mean(liver$Total_Protiens))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are some outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Total_Protiens, prob = TRUE, breaks = 58, xlab = "Total_Protiens", main = "Total Protiens Histogram")
+lines(density(liver$Total_Protiens), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Total_Protiens` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a left skewed. We have already observed a negative value of `-0.2916746`, so we will affirm that the distribution is left skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Total_Protiens)
+```
+
+The distribution is also `Leptokurtic`, since the value is greater than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Total_Protiens, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Total Protiens") +
+  ggtitle("Boxplot of the Total Protiens across the Liver_Disease")
+```
+```{r}
+ggplot(liver, aes(Liver_Disease, Total_Protiens)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+A variable that looks like it has a bell shaped curve. The range for the variable is from 2.7 to 9.6, with a mean of 6.481 and median of 6.6. There does not seem to be much of a difference between the means for the Total Proteins for each response. There is a difference between the responses when you look across the genders. The females have a higher mean for total proteins across the Liver_Disease group.
+
+### Total Protien Fit for the Data
+
+Now we will try to fit different models to Total Protiens distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+tp.BCCG <- histDist(liver$Total_Protiens, family=BCCG, nbins = 58, xlab = "Total_Protiens", main="Box-Cox Cole and Green Distribution of Total Protiens")
+
+tp.GG <- histDist(liver$Total_Protiens, family=GG, nbins = 58, xlab = "Total_Protiens", main="Generalized Gamma Distribution of Total Protiens")
+
+tp.WEI <- histDist(liver$Total_Protiens, family=WEI, nbins = 58, xlab = "Total_Protiens", main="Weibull distribution of Total Protiens")
+
+tp.LOGNO <- histDist(liver$Total_Protiens, family=LOGNO, nbins = 58, xlab = "Total_Protiens", main="Log-Normal Distribution of Total Protiens")
+
+tp.IG <- histDist(liver$Total_Protiens, family=IG, nbins = 58, xlab = "Total_Protiens", main = "Inverse Gussian Distribution of Total Protiens")
+
+tp.EXP<- histDist(liver$Total_Protiens, family=EXP, nbins = 58, xlab = "Total_Protiens", main = "Exponential Distribution of Total Protiens")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Box-Cox Cole and Green","Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(tp.BCCG), AIC(tp.GG), AIC(tp.WEI), AIC(tp.LOGNO),
+                             AIC(tp.IG), AIC(tp.EXP)),
+                     BIC = c(tp.BCCG$sbc, tp.GG$sbc, tp.WEI$sbc, tp.LOGNO$sbc,
+                             tp.IG$sbc, tp.EXP$sbc),
+                     df = c(tp.BCCG$df.fit, tp.GG$df.fit, tp.WEI$df.fit,
+                            tp.LOGNO$df.fit, tp.IG$df.fit, tp.EXP$df.fit),
+                     LogLike = c(logLik(tp.BCCG), logLik(tp.GG), logLik(tp.WEI),
+                                  logLik(tp.LOGNO), logLik(tp.IG), logLik(tp.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-864.1775) and the lowest AIC (1734.355) and BIC (1747.439) is the Box-Cox Cole and Green Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Box-Cox Cole and Green Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(tp.BCCG, tp.EXP)
+```
+
+Under the null hypothesis, we compare the Box-Cox Cole and Green distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Box-Cox Cole and Green model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Total_Protiens~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has increased, since it is higher than that of the single Gamma distribution. The current `AIC` value is `1742.81`, whereas the previous value was `1734.355` and the current `BIC` value is `1764.62`, whereas the previous value was `1747.439`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Total_Protiens, breaks = 58, xlab = "Total_Protiens", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Total_Protiens, breaks = 58, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Total_Protiens), max(liver$Total_Protiens), length = length(liver$Total_Protiens)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Total_Protiens), max(liver$Total_Protiens), length = length(liver$Total_Protiens)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Total_Protiens), max(liver$Total_Protiens), length = length(liver$Total_Protiens)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Total_Protiens~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Total_Protiens, breaks = 58, xlab = "Total_Protiens", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Total_Protiens, breaks = 58, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Total_Protiens), max(liver$Total_Protiens), length = length(liver$Total_Protiens)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Total_Protiens), max(liver$Total_Protiens), length = length(liver$Total_Protiens)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Total_Protiens), max(liver$Total_Protiens), length = length(liver$Total_Protiens)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Total_Protiens), max(liver$Total_Protiens),
+      length = length(liver$Total_Protiens)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(tp.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, tp.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 and k=2 has increased, since values are higher than that of the single Gamma distribution. The previous AIC value is `1735.067`, whereas the current value which is higher is `1739.865` and the previous BIC value was `1748.151`, whereas the current value which is higher is `1774.755`.
+Here we can clearly see that our data fits better in the single Gamma Distribution.
+
+## Albumin
+
+Lets explore the `Albumin` variable:
+
+```{r}
+head(liver$Albumin)
+```
+```{r}
+length(liver$Albumin)
+```
+```{r}
+table(liver$Albumin)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Albumin)
+```
+```{r}
+length(unique(liver$Albumin))
+```
+```{r}
+min(liver$Albumin)
+```
+```{r}
+max(liver$Albumin)
+```
+
+Here the total observation of Albumin is `579` and is a continuous variable that range lies between `0.9-5.5`. Now, we will see the summary of the Albumin variable, for further analysis as follows:
+
+```{r}
+summary(liver$Albumin)
+```
+```{r}
+sd(liver$Albumin)
+```
+```{r}
+var(liver$Albumin)
+```
+```{r}
+v <- c(liver$Albumin)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (3.139), Median (3.100) and Mode (3) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Albumin)
+```
+
+Hence, the skewness is the negative so the distribution is negatively skewed. Also I will plot the Boxplot to comparing the distribution of data across dataset as follows:
+
+```{r}
+boxplot(liver$Albumin, main = " Albumin BoxPlot")
+points(mean(liver$Albumin))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Box plot diagram, there are no outliers and the upper whisker shows the maximum. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Albumin, prob = TRUE, breaks = 40, xlab = "Albumin", main = "Albumin Histogram")
+lines(density(liver$Albumin), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Albumin` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a left skewed. We have already observed a negative value of `-0.04839028`, so we will affirm that the distribution is left skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Albumin)
+```
+
+The distribution is also `Platykurtic`, since the value is less than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Albumin, fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Albumin") +
+  ggtitle("Boxplot of the Albumin across the Liver_Disease") 
+```
+```{r}
+ggplot(liver, aes(Liver_Disease, Albumin)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+Range from 0.9 to 5.5, mean of 3.139, and median of 3.100. Bell shaped density for the Albumin values. The mean is higher for Liver_Disease = 1 and the range is larger when the Liver_Disease = 0. There is a clear difference in the means for the Albumin values across the genders and Liver_Disease. The mean is higher for females when the Liver_Disease = 0 and is higher for males when the Liver_Disease = 1.
+
+### Albumin Fit for the Data
+
+Now we will try to fit different models to Albumin distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+a.BCCG <- histDist(liver$Albumin, family=BCCG, nbins = 40, xlab = "Albumin", main="Box-Cox Cole and Green Distribution of Albumin")
+
+a.GG <- histDist(liver$Albumin, family=GG, nbins = 40, xlab = "Albumin", main="Generalized Gamma Distribution of Albumin")
+
+a.WEI <- histDist(liver$Albumin, family=WEI, nbins = 40, xlab = "Albumin", main="Weibull distribution of Albumin")
+
+a.LOGNO <- histDist(liver$Albumin, family=LOGNO, nbins = 40, xlab = "Albumin", main="Log-Normal Distribution of Albumin")
+
+a.IG <- histDist(liver$Albumin, family=IG, nbins = 40, xlab = "Albumin", main = "Inverse Gussian Distribution of Albumin")
+
+a.EXP<- histDist(liver$Albumin, family=EXP, nbins = 40, xlab = "Albumin", main = "Exponential Distribution of Albumin")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Box-Cox Cole and Green","Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(a.BCCG), AIC(a.GG), AIC(a.WEI), AIC(a.LOGNO),
+                             AIC(a.IG), AIC(a.EXP)),
+                     BIC = c(a.BCCG$sbc, a.GG$sbc, a.WEI$sbc, a.LOGNO$sbc,
+                             a.IG$sbc, a.EXP$sbc),
+                     df = c(a.BCCG$df.fit, a.GG$df.fit, a.WEI$df.fit,
+                            a.LOGNO$df.fit, a.IG$df.fit, a.EXP$df.fit),
+                     LogLike = c(logLik(a.BCCG), logLik(a.GG), logLik(a.WEI),
+                                  logLik(a.LOGNO), logLik(a.IG), logLik(a.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-685.9226) and the lowest AIC (1377.845) and BIC (1390.929) is the Generalized Gamma Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Generalized Gamma Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(a.GG, a.EXP)
+```
+
+Under the null hypothesis, we compare the Generalized Gamma distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Generalized Gamma model, we’ll use it.
+
+### Distributions Mixture
+
+Now, I will also apply the fitting criteria for the distributions with Gamma mixture as follows:
+
+```{r}
+library(gamlss.mx)
+mix.gam <- gamlssMXfits(n = 5, liver$Albumin~1, family = GA, K = 2, data = liver)
+```
+```{r}
+print(mix.gam)
+```
+
+We can observe that the AIC value of the mixture of Gamma has improved, since it is higher than that of the single Gamma distribution. The current `AIC` value is `1383.75`, whereas the previous value was `1377.845`and the current `BIC` value is `1405.55`, whereas the previous value was `1390.929`.
+
+```{r}
+logLik(mix.gam)
+```
+```{r}
+mix.gam$prob
+```
+```{r}
+fitted(mix.gam, "mu")[1]
+```
+```{r}
+fitted(mix.gam, "sigma")[2]
+```
+```{r}
+hist(liver$Albumin, breaks = 40, xlab = "Albumin", main="Mixture of Gamma with k=2", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Albumin, breaks = 40, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Albumin), max(liver$Albumin), length = length(liver$Albumin)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Albumin), max(liver$Albumin), length = length(liver$Albumin)),
+      mix.gam[["prob"]][2]*dGA(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Albumin), max(liver$Albumin), length = length(liver$Albumin)),
+      mix.gam[["prob"]][1]*dGA(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam[["prob"]][2]*dRG(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+
+```
+
+Now, I will again apply the fitting criteria for the distributions with Gamma mixture with the k = 3 as follows:
+
+```{r}
+mix.gam.3 <- gamlssMXfits(n = 5, liver$Albumin~1, family = GA, K = 3, data = liver)
+```
+```{r}
+print(mix.gam.3)
+```
+```{r}
+logLik(mix.gam.3)
+```
+```{r}
+mix.gam.3$prob
+```
+```{r}
+fitted(mix.gam.3, "mu")[1]
+```
+```{r}
+fitted(mix.gam.3, "sigma")[2]
+```
+```{r}
+hist(liver$Albumin, breaks = 40, xlab = "Albumin", main="Mixture of Gamma with k=3", freq = FALSE)
+
+mu.hat1 <- exp(mix.gam.3[["models"]][[1]][["mu.coefficients"]])
+
+sigma.hat1 <- exp(mix.gam.3[["models"]][[1]][["sigma.coefficients"]])
+
+mu.hat2 <- exp(mix.gam.3[["models"]][[2]][["mu.coefficients"]])
+
+sigma.hat2 <- exp(mix.gam.3[["models"]][[2]][["sigma.coefficients"]])
+
+hist(liver$Albumin, breaks = 40, freq = FALSE, plot = FALSE)
+
+lines(seq(min(liver$Albumin), max(liver$Albumin), length = length(liver$Albumin)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat1, sigma = sigma.hat1),
+      lty=1, lwd=3, col="blue")
+
+lines(seq(min(liver$Albumin), max(liver$Albumin), length = length(liver$Albumin)),
+      mix.gam.3[["prob"]][2]*dGA(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 2, lwd = 3, col = "red")
+
+lines(seq(min(liver$Albumin), max(liver$Albumin), length = length(liver$Albumin)),
+      mix.gam.3[["prob"]][1]*dGA(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat1, sigma = sigma.hat1)+
+      mix.gam.3[["prob"]][2]*dRG(seq(min(liver$Albumin), max(liver$Albumin),
+      length = length(liver$Albumin)), mu = mu.hat2, sigma = sigma.hat2),
+      lty = 3, lwd = 3, col = "green")
+```
+```{r}
+mix.gm.tb <- data.frame(row.names=c('Gamma Mixture, K=3','Gamma Mixture, K=2', "Generalized Gamma"),
+                        AIC=c(mix.gam.3$aic, mix.gam$aic, AIC(a.GG)),
+                        BIC=c(mix.gam.3$sbc, mix.gam$sbc, a.GG$sbc))
+mix.gm.tb
+```
+
+We can observe that the AIC value of the mixture of Gamma with k=3 has increased, since values are higher than that of the single Gamma distribution and Gamma Mixture k=2 . The previous AIC value is `1377.845`, whereas the current value which is lower is `1368.254`.
+Here we can clearly see that our data fits better in the Gamma Mixture with k=3 Distribution.
+
+## Albumin and Globulin Ratio
+
+Lets explore the `Albumin and Globulin Ratio` variable:
+
+```{r}
+head(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+length(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+table(liver$Albumin_and_Globulin_Ratio)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.
+
+```{r}
+unique(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+length(unique(liver$Albumin_and_Globulin_Ratio))
+```
+```{r}
+min(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+max(liver$Albumin_and_Globulin_Ratio)
+```
+
+Here the total observation of Albumin_and_Globulin_Ratio is `579` and is a continuous variable that range lies between `0.3-2.8`. Now, we will see the summary of the Albumin_and_Globulin_Ratio variable, for further analysis as follows:
+
+```{r}
+summary(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+sd(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+var(liver$Albumin_and_Globulin_Ratio)
+```
+```{r}
+v <- c(liver$Albumin_and_Globulin_Ratio)
+mode <- getMode(v)
+print(mode)
+
+```
+
+From the above summary we can observe that the Mean (0.9471), Median (0.9300) and Mode (1) are not equal so the distribution is asymmetrical. Here Mean > Median > Mode so the distribution could be positive and skewed to the right. Now we also confirm this as follows:
+
+```{r}
+library(moments)
+skewness(liver$Albumin_and_Globulin_Ratio)
+```
+
+Hence, the skewness is the positive so the distribution is positively skewed was rightly observed. Also I will plot the Boxplot to comparing the distribution of data across dataset as follows:
+
+```{r}
+boxplot(liver$Albumin_and_Globulin_Ratio, main = "Albumin and Globulin Ratio BoxPlot")
+points(mean(liver$Albumin_and_Globulin_Ratio))
+points(mode)
+```
+
+Box plots are graphical displays of the five number summary, So they describe the Minimum (lowest mean relative) lower whisker, Quartile 1 (It separates the lowest 25% observation to the rest of the observations), Median (Which divides the lower 50% observation from the upper 50% observations), Quartile 3 (It divides the upper 25% observation to the rest of the observations) and Maximum. In the above Boxplot diagram, there are some outliers and the upper whisker shows the highest mean relative. Now, I will plot a histogram a graphical display of data using bars of different heights to measures distribution of continuous data as follows:
+
+```{r}
+hist(liver$Albumin_and_Globulin_Ratio, prob = TRUE, breaks = 69, xlab = "Albumin_and_Globulin_Ratio", main = "Albumin and Globulin Ratio Histogram")
+lines(density(liver$Albumin_and_Globulin_Ratio), col='blue')
+```
+
+From the above histogram, we can observe that the diagram has many peaks.Using the density lines, I have approximated the histogram graph.
+Density provides information about the type of distribution under consideration and allows us to determine whether the attribute is distributed normally or not.
+From the graph above we can see how the `Albumin_and_Globulin_Ratio` variable does not seem to fit to a Normal distribution, there is a peak of the frequency distributions around many values and also a right skewed. We have already observed a positive value of `0.9897269`, so we will affirm that the distribution is right skewed. To check whether the distribution is `Platykurtic` or not, we will check this by following R method as follows:
+
+```{r}
+kurtosis(liver$Albumin_and_Globulin_Ratio)
+```
+
+The distribution is also `Leptokurtic`, since the value is greater than 3.
+
+```{r}
+ggplot(liver, aes(x = Liver_Disease, y = Albumin_and_Globulin_Ratio,
+                  fill = Liver_Disease)) +
+  geom_boxplot() +
+  ylab("Albumin and Globulin Ratio") +
+  ggtitle("Boxplot of the Albumin and Globulin Ratio across the Liver_Disease")
+```
+```{r}
+ggplot(liver, aes(Liver_Disease, Albumin_and_Globulin_Ratio)) + 
+  geom_boxplot(aes(fill = Gender))
+```
+
+The mean for the ratio is 0.947 and is very close to the median of 0.93. The ratio has somewhat of a bell shaped curve. The mean for the ratio is higher in the Liver_Disease = 1 response, with the range being larger in the Liver_Disease = 0 group. There is no difference with the Liver_Disease when you compare the genders. The ranges vary though.
+
+### Albumin and Globulin Ratio Fit for the Data
+
+Now we will try to fit different models to Albumin_and_Globulin_Ratio distribution evaluating the Akaike Information Criterion (AIC) and the Bayesian Information criterion (BIC), The lower are the indexes, the better is the fitting. I will evaluate both the single parameter distributions and mixture distributions as follows:
+
+```{r}
+library(MASS)
+library(gamlss)
+
+
+par(mfrow=c(3,2))
+
+agr.BCCG <- histDist(liver$Albumin_and_Globulin_Ratio, family=BCCG, nbins = 69, xlab = "Albumin_and_Globulin_Ratio", main="Box-Cox Cole and Green Distribution of Albumin and Globulin Ratio")
+
+agr.GG <- histDist(liver$Albumin_and_Globulin_Ratio, family=GG, nbins = 69, xlab = "Albumin_and_Globulin_Ratio", main="Generalized Gamma Distribution of Albumin and Globulin Ratio")
+
+agr.WEI <- histDist(liver$Albumin_and_Globulin_Ratio, family=WEI, nbins = 69, xlab = "Albumin_and_Globulin_Ratio", main="Weibull distribution of Albumin and Globulin Ratio")
+
+agr.LOGNO <- histDist(liver$Albumin_and_Globulin_Ratio, family=LOGNO, nbins = 69, xlab = "Albumin and Globulin Ratio", main="Log-Normal Distribution of Age")
+
+agr.IG <- histDist(liver$Albumin_and_Globulin_Ratio, family=IG, nbins = 69, xlab = "Albumin_and_Globulin_Ratio", main = "Inverse Gussian Distribution of Albumin and Globulin Ratio")
+
+agr.EXP<- histDist(liver$Albumin_and_Globulin_Ratio, family=EXP, nbins = 69, xlab = "Albumin_and_Globulin_Ratio", main = "Exponential Distribution of Albumin and Globulin Ratio")
+```
+```{r}
+library(Matrix)
+library(glmnet)
+df <- data.frame(Rownames = c("Box-Cox Cole and Green","Generalized Gamma", "Weibull",
+                          "Log-Normal", "Inverse Gussian", "Exponential"),
+                     AIC = c(AIC(agr.BCCG), AIC(agr.GG), AIC(agr.WEI), AIC(agr.LOGNO),
+                             AIC(agr.IG), AIC(agr.EXP)),
+                     BIC = c(agr.BCCG$sbc, agr.GG$sbc, agr.WEI$sbc, agr.LOGNO$sbc,
+                             agr.IG$sbc, agr.EXP$sbc),
+                     df = c(agr.BCCG$df.fit, agr.GG$df.fit, agr.WEI$df.fit,
+                            agr.LOGNO$df.fit, agr.IG$df.fit, agr.EXP$df.fit),
+                     LogLike = c(logLik(agr.BCCG), logLik(agr.GG), logLik(agr.WEI),
+                                  logLik(agr.LOGNO), logLik(agr.IG), logLik(agr.EXP)))
+df
+```
+
+As we can see, the model with the highest log likelihood (-134.2406) and the lowest AIC (274.4812) and BIC (287.5651) is the Box-Cox Cole and Green Distribution. Therefore, based on the greatest likelihood technique, our data fits better in the Box-Cox Cole and Green Distribution. Now, I will also compare two models by means of the Likelihood ratio test as we performed above as follows:
+
+```{r}
+library(zoo)
+library(lmtest)
+lrtest(agr.BCCG, agr.EXP)
+```
+
+Under the null hypothesis, we compare the Box-Cox Cole and Green distribution to the Exponential distribution under the alternative hypothesis. At any level of significance, we can reject the null hypothesis. Because our distributions fit better in the Box-Cox Cole and Green distribution model, we’ll use it.
+
+## Liver Disease
+
+Lets analyze the features of `Liver Disease` variable as follows:
+
+```{r}
+length(liver$Liver_Disease)
+```
+```{r}
+table(liver$Liver_Disease)
+```
+
+The table() function in R returns the absolute frequencies for each patient-specified value in the data set.Here we can see the `liver$Liver_Disease` variable is a categorical variable that can take two values `0` which means no disease, `1` which means have liver disease.
+
+```{r}
+library(ggplot2)
+ggplot(liver, aes(x = Liver_Disease, fill = Liver_Disease)) + 
+geom_bar()
+```
+
+As the bar plot shows our data set contains data belonging to 414 patients have no Liver Disease and 165 patients having a Liver Disease. So from both plot and table() we can see that our data is not balanced and the study includes more no disease than having disease.
+
